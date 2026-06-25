@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#061019">
+    <meta name="description" content="Live Gombe Harmattan dust storm and air-quality digital twin">
+    <title>Gombe Harmattan Digital Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=6.0.0">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="/static/css/styles.css?v=6.0.0">
+</head>
+<body>
+    <main class="app-shell">
+        <div id="map" aria-label="Complete live map of Gombe State with unobscured town and village labels"></div>
+        <canvas id="wind-canvas" aria-hidden="true"></canvas>
+        <canvas id="heat-canvas" aria-hidden="true"></canvas>
+        <canvas id="dust-canvas" aria-hidden="true"></canvas>
+        <svg id="state-mask-overlay" aria-hidden="true" preserveAspectRatio="none">
+            <path id="state-mask-path" fill-rule="evenodd"></path>
+            <path id="state-outline-path"></path>
+        </svg>
+        <div id="place-label-layer" aria-label="Gombe State towns and villages"></div>
+        <div class="atmosphere-layer" aria-hidden="true"></div>
+        <div class="scanline-layer" aria-hidden="true"></div>
+        <div class="vignette-layer" aria-hidden="true"></div>
+
+        <header class="topbar glass-panel">
+            <section class="brand">
+                <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div>
+                    <p class="eyebrow">ENVIRONMENTAL COMMAND CENTRE · GOMBE STATE</p>
+                    <h1>Harmattan Dust & Air Quality Twin</h1>
+                </div>
+            </section>
+
+            <section class="status-strip">
+                <div class="status-item">
+                    <span class="status-dot" id="socket-dot"></span>
+                    <div><small>WEBSOCKET</small><strong id="stream-status">CONNECTING</strong></div>
+                </div>
+                <div class="status-item compact-status">
+                    <span class="pulse-icon"></span>
+                    <div><small>LIVE FRAME</small><strong id="frame-sequence">000000</strong></div>
+                </div>
+                <div class="status-item compact-status">
+                    <span class="packet-icon">↯</span>
+                    <div><small>DATA AGE</small><strong id="packet-age">-- ms</strong></div>
+                </div>
+                <div class="status-item clock-item">
+                    <small>GOMBE LOCAL TIME</small>
+                    <strong id="live-clock">--:--:--</strong>
+                </div>
+                <span class="mode-badge" id="mode-badge">DEMO</span>
+            </section>
+        </header>
+
+        <aside class="left-stack panel-stack">
+            <section class="glass-panel metric-panel">
+                <div class="panel-heading">
+                    <div><p class="eyebrow">ATMOSPHERIC TELEMETRY</p><h2>Air Quality Now</h2></div>
+                    <span class="live-pill"><i></i> UPDATES EACH SECOND</span>
+                </div>
+
+                <div class="primary-metrics">
+                    <article class="metric-card accent-orange">
+                        <small>PM2.5 · FINE PARTICLES</small>
+                        <div><strong id="pm25-value">--</strong><span>µg/m³</span></div>
+                        <p id="pm25-delta">Awaiting stream</p>
+                        <i class="metric-spark" id="pm25-spark"></i>
+                    </article>
+                    <article class="metric-card accent-gold">
+                        <small>PM10 · DUST PARTICLES</small>
+                        <div><strong id="pm10-value">--</strong><span>µg/m³</span></div>
+                        <p id="pm10-delta">Awaiting stream</p>
+                        <i class="metric-spark" id="pm10-spark"></i>
+                    </article>
+                </div>
+
+                <div class="aqi-banner" id="aqi-banner">
+                    <div class="aqi-number"><small>AIR QUALITY INDEX</small><strong id="aqi-value">--</strong></div>
+                    <div class="aqi-copy"><b id="aqi-category">Connecting...</b><span id="aqi-guidance">Live environmental assessment</span></div>
+                    <div class="aqi-orbit" aria-hidden="true"><i></i><i></i></div>
+                </div>
+            </section>
+
+            <section class="glass-panel weather-panel">
+                <div class="panel-heading">
+                    <div><p class="eyebrow">LIVE WEATHER ENGINE</p><h2>Surface Conditions</h2></div>
+                    <span class="observation-age" id="observed-age">SYNCING</span>
+                </div>
+
+                <div class="weather-hero">
+                    <div class="temperature-block">
+                        <span class="weather-symbol" id="weather-symbol">☀</span>
+                        <div><strong><b id="temperature">--</b>°C</strong><span id="condition">Loading weather</span></div>
+                    </div>
+                    <div class="wind-compass">
+                        <div class="compass-ring"><span>N</span><span>E</span><span>S</span><span>W</span><i id="wind-arrow"></i></div>
+                        <div class="wind-readout"><strong><b id="wind-speed">--</b> m/s</strong><span id="wind-bearing">--</span></div>
+                    </div>
+                </div>
+
+                <div class="weather-grid">
+                    <article><span>≋</span><div><small>WIND GUST</small><strong><b id="gust-speed">--</b> m/s</strong></div></article>
+                    <article><span>◌</span><div><small>HUMIDITY</small><strong><b id="humidity">--</b>%</strong><em id="humidity-state">--</em></div></article>
+                    <article><span>↧</span><div><small>PRESSURE</small><strong><b id="pressure">--</b> hPa</strong></div></article>
+                    <article><span>◔</span><div><small>DEW POINT</small><strong><b id="dew-point">--</b>°C</strong></div></article>
+                    <article><span>☁</span><div><small>CLOUD COVER</small><strong><b id="cloud-cover">--</b>%</strong></div></article>
+                    <article><span>◎</span><div><small>VISIBILITY</small><strong><b id="visibility">--</b> km</strong></div></article>
+                    <article><span>⌁</span><div><small>RAIN · 1 HOUR</small><strong><b id="rainfall">--</b> mm</strong></div></article>
+                    <article><span>↗</span><div><small>BEAUFORT STATE</small><strong id="beaufort-label">--</strong></div></article>
+                </div>
+            </section>
+
+            <section class="glass-panel source-panel">
+                <div class="panel-heading compact"><div><p class="eyebrow">DATA FUSION</p><h2>Source Integrity</h2></div></div>
+                <div class="source-row"><span class="source-logo weather-logo">W</span><div><strong>Weather vector</strong><small id="weather-source">Initialising</small></div><i></i></div>
+                <div class="source-row"><span class="source-logo air-logo">A</span><div><strong>Particulate sensors</strong><small id="air-source">Initialising</small></div><i></i></div>
+                <div class="source-row"><span class="source-logo fire-logo">F</span><div><strong>Thermal hotspots</strong><small id="firms-source">Initialising</small></div><i></i></div>
+            </section>
+        </aside>
+
+        <aside class="right-stack panel-stack">
+            <section class="glass-panel risk-panel">
+                <div class="panel-heading">
+                    <div><p class="eyebrow">DECISION SUPPORT</p><h2>Operational Risk</h2></div>
+                    <span class="risk-level" id="risk-level">WATCH</span>
+                </div>
+                <div class="gauge-grid">
+                    <article class="gauge-card"><div class="gauge" id="dust-gauge"><div><strong id="dust-index">--</strong><small>/100</small></div></div><h3>Dust Loading</h3><p>Uplift and concentration</p></article>
+                    <article class="gauge-card"><div class="gauge" id="health-gauge"><div><strong id="health-risk">--</strong><small>/100</small></div></div><h3>Health Risk</h3><p>Respiratory exposure</p></article>
+                    <article class="gauge-card"><div class="gauge" id="aviation-gauge"><div><strong id="aviation-risk">--</strong><small>/100</small></div></div><h3>Aviation Risk</h3><p>Visibility and gusts</p></article>
+                </div>
+                <div class="alert-card" id="alert-card"><div class="alert-symbol">!</div><div><small id="alert-label">DUST WATCH</small><p id="alert-message">Waiting for the first telemetry frame.</p></div></div>
+            </section>
+
+            <section class="glass-panel flow-panel">
+                <div class="panel-heading compact">
+                    <div><p class="eyebrow">FLOW INTELLIGENCE</p><h2>Atmospheric Motion</h2></div>
+                    <span class="flow-state"><i></i> ANIMATED</span>
+                </div>
+                <div class="flow-visual">
+                    <div class="flow-lines" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+                    <div><small>TRANSPORT VECTOR</small><strong id="transport-bearing">--</strong><span id="wind-card-state">Awaiting wind field</span></div>
+                </div>
+                <div class="flow-stats">
+                    <article><small>DISPERSION</small><strong id="dispersion-score">--%</strong></article>
+                    <article><small>GUST FACTOR</small><strong id="gust-factor">--×</strong></article>
+                    <article><small>DUST PARTICLES</small><strong id="particle-count">0</strong></article>
+                    <article><small>WIND STREAMS</small><strong id="wind-line-count">0</strong></article>
+                </div>
+            </section>
+
+            <section class="glass-panel thermal-panel">
+                <div class="panel-heading compact">
+                    <div><p class="eyebrow">THERMAL & RADIANCE ENGINE</p><h2>Heat Exposure Matrix</h2></div>
+                    <span class="thermal-state" id="thermal-state">SCANNING</span>
+                </div>
+
+                <div class="thermal-hero">
+                    <div class="thermal-core" id="thermal-core">
+                        <span class="thermal-orbit orbit-a"></span>
+                        <span class="thermal-orbit orbit-b"></span>
+                        <div><small>THERMAL STRESS</small><strong id="thermal-stress">--</strong><em>/100</em></div>
+                    </div>
+                    <div class="thermal-readouts">
+                        <article><small>AMBIENT</small><strong><b id="thermal-ambient">--</b>°C</strong></article>
+                        <article><small>APPARENT</small><strong><b id="apparent-temperature">--</b>°C</strong></article>
+                        <article><small>RADIANCE</small><strong><b id="radiance-index">--</b>%</strong></article>
+                        <article><small>SPARKLES</small><strong id="spark-count">0</strong></article>
+                    </div>
+                </div>
+
+                <div class="heat-meter-grid">
+                    <article class="heat-meter-card ambient-meter">
+                        <div class="heat-meter-scale"><i id="ambient-heat-fill"></i><span></span></div>
+                        <div><small>AMBIENT HEAT</small><strong id="ambient-heat-value">--%</strong><em id="ambient-heat-label">Awaiting</em></div>
+                    </article>
+                    <article class="heat-meter-card dust-radiance-meter">
+                        <div class="heat-meter-scale"><i id="radiance-fill"></i><span></span></div>
+                        <div><small>DUST RADIANCE</small><strong id="radiance-value">--%</strong><em>Optical sparkle load</em></div>
+                    </article>
+                    <article class="heat-meter-card frp-meter">
+                        <div class="heat-meter-scale"><i id="frp-heat-fill"></i><span></span></div>
+                        <div><small>FIRE RADIATIVE POWER</small><strong id="frp-heat-value">-- MW</strong><em><b id="thermal-hotspot-count">0</b> active hotspots</em></div>
+                    </article>
+                    <article class="heat-meter-card exposure-meter">
+                        <div class="heat-meter-scale"><i id="exposure-fill"></i><span></span></div>
+                        <div><small>EXPOSURE LOAD</small><strong id="exposure-value">--%</strong><em>Heat + particulates</em></div>
+                    </article>
+                </div>
+            </section>
+
+            <section class="glass-panel radar-panel">
+                <div class="panel-heading compact">
+                    <div><p class="eyebrow">SENSOR NETWORK</p><h2>Radar Activity</h2></div>
+                    <span class="radar-count"><b id="sensor-count">0</b> NODES</span>
+                </div>
+                <div class="radar-list">
+                    <article><span class="mini-radar"><i></i></span><div><strong>Gombe Central</strong><small>Primary atmospheric scan</small></div><em>LIVE</em></article>
+                    <article><span class="mini-radar delay-one"><i></i></span><div><strong>Kaltungo South</strong><small>Terrain corridor scan</small></div><em>LIVE</em></article>
+                    <article><span class="mini-radar delay-two"><i></i></span><div><strong>Dukku North</strong><small>Upwind dust detection</small></div><em>LIVE</em></article>
+                </div>
+            </section>
+        </aside>
+
+        <section class="bottom-deck glass-panel">
+            <div class="chart-card">
+                <div class="chart-heading"><div><p class="eyebrow">60-SECOND TRACE</p><h3>Particulate Evolution</h3></div><div class="legend"><span class="legend-pm25">PM2.5</span><span class="legend-pm10">PM10</span></div></div>
+                <canvas id="particle-chart"></canvas>
+            </div>
+            <div class="chart-card wind-card">
+                <div class="chart-heading"><div><p class="eyebrow">VECTOR DYNAMICS</p><h3>Wind & Dispersion</h3></div><strong id="wind-chart-value">-- m/s</strong></div>
+                <canvas id="wind-chart"></canvas>
+            </div>
+            <div class="hotspot-summary">
+                <p class="eyebrow">NASA FIRMS · THERMAL LAYER</p>
+                <div class="hotspot-number"><strong id="hotspot-count">0</strong><span>hotspots<br>inside twin</span></div>
+                <div class="thermal-bar thermal-bar-primary"><i id="thermal-fill"></i></div>
+                <small id="hotspot-updated">Awaiting satellite layer</small>
+
+                <div class="meter-list">
+                    <div class="meter-row">
+                        <div class="meter-head"><span>THERMAL INTENSITY</span><strong id="thermal-intensity">--%</strong></div>
+                        <div class="meter-track"><i id="thermal-intensity-fill"></i></div>
+                    </div>
+                    <div class="meter-row">
+                        <div class="meter-head"><span>PEAK FRP</span><strong id="peak-frp">-- MW</strong></div>
+                        <div class="meter-track heat"><i id="peak-frp-fill"></i></div>
+                    </div>
+                    <div class="meter-row">
+                        <div class="meter-head"><span>SURFACE HEAT LOAD</span><strong id="surface-heat">--%</strong></div>
+                        <div class="meter-track ember"><i id="surface-heat-fill"></i></div>
+                    </div>
+                </div>
+
+                <div class="client-row">
+                    <span>Connected viewers</span><strong id="connected-clients">0</strong>
+                </div>
+            </div>
+        </section>
+
+
+        <section class="live-motion-hud glass-panel" id="live-motion-hud" aria-live="polite">
+            <div class="motion-beacon" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="motion-copy">
+                <small>RENDER ENGINE</small>
+                <strong><span id="motion-status">LIVE MOTION</span><b id="animation-fps">-- FPS</b></strong>
+            </div>
+            <div class="motion-stats">
+                <span><b id="visible-sparks">0</b> POINTS</span>
+                <span><b id="sparkle-severity">--%</b> SEVERITY</span>
+                <span><b id="visible-wind">0</b> FLOWS</span>
+                <span><b id="active-flashes">0</b> FLASHES</span>
+            </div>
+        </section>
+
+        <section class="map-heat-hud glass-panel" id="map-heat-hud" aria-label="Live heat meters">
+            <div class="map-heat-heading">
+                <div><small>LIVE THERMAL METERS</small><strong id="map-thermal-state">SCANNING</strong></div>
+                <span class="heat-pulse" aria-hidden="true"></span>
+            </div>
+            <div class="map-heat-row">
+                <span>AMBIENT</span><div><i id="map-ambient-fill"></i></div><b id="map-ambient-value">--%</b>
+            </div>
+            <div class="map-heat-row">
+                <span>DUST GLOW</span><div><i id="map-radiance-fill"></i></div><b id="map-radiance-value">--%</b>
+            </div>
+            <div class="map-heat-row">
+                <span>FIRE FRP</span><div><i id="map-frp-fill"></i></div><b id="map-frp-value">--</b>
+            </div>
+            <div class="map-heat-row exposure">
+                <span>EXPOSURE</span><div><i id="map-exposure-fill"></i></div><b id="map-exposure-value">--%</b>
+            </div>
+        </section>
+
+        <nav class="map-controls glass-panel" aria-label="Map controls">
+            <button type="button" id="reset-view" title="Fit the complete Gombe State boundary"><span>⌂</span><small>STATE</small></button>
+            <button type="button" id="toggle-particles" class="active" title="Toggle dust particles"><span>✦</span><small>DUST</small></button>
+            <button type="button" id="toggle-wind" class="active" title="Toggle wind streamlines"><span>≋</span><small>WIND</small></button>
+            <button type="button" id="toggle-heat" class="active" title="Toggle heat haze and thermal layer"><span>♨</span><small>HEAT</small></button>
+            <button type="button" id="toggle-radar" class="active" title="Toggle radar network"><span>◉</span><small>RADAR</small></button>
+            <button type="button" id="toggle-boost" class="active" title="Toggle high-visibility sparkle boost"><span>✹</span><small>BOOST</small></button>
+            <button type="button" id="toggle-rotate" title="Auto-rotate map"><span>↻</span><small>ORBIT</small></button>
+        </nav>
+
+        <div class="map-legend glass-panel">
+            <span><i class="legend-sensor"></i>Air sensor</span>
+            <span><i class="legend-fire"></i>Fire hotspot</span>
+            <span><i class="legend-radar"></i>Radar station</span>
+            <span><i class="legend-wind"></i>Wind flow</span>
+            <span><i class="legend-dust"></i>Severity-scaled dust points</span>
+            <span><i class="legend-heat"></i>Heat haze</span>
+        </div>
+
+        <div class="map-title-overlay">
+            <small>COMPLETE STATE-ONLY GEOSPATIAL TWIN</small>
+            <strong>GOMBE STATE</strong>
+            <span id="map-subtitle">Particles and atmospheric vectors synchronised to telemetry</span>
+        </div>
+
+        <div id="toast" role="status" aria-live="polite"></div>
+    </main>
+
+    <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+    <script type="module" src="/static/js/app.js?v=6.0.0"></script>
+</body>
+</html>
