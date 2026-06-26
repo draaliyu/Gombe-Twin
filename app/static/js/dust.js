@@ -98,7 +98,11 @@ export class DustParticleField {
         this.frameCounter = 0;
         this.fps = 60;
         this.fpsWindowStarted = performance.now();
-        this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.65);
+        this.qualityMode = "desktop";
+        this.qualityScale = 1;
+        this.minFrameInterval = 0;
+        this.lastRenderedAt = 0;
+        this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.55);
         this.sprites = this.createPointSprites();
         this.resize = this.resize.bind(this);
         this.animate = this.animate.bind(this);
@@ -175,6 +179,29 @@ export class DustParticleField {
         return [11.1673, 10.2897];
     }
 
+    setQuality(mode = "desktop") {
+        this.qualityMode = mode;
+        const profiles = {
+            desktop: { scale: 1, dpr: 1.55, interval: 0 },
+            tablet: { scale: 0.62, dpr: 1.2, interval: 22 },
+            mobile: { scale: 0.34, dpr: 1, interval: 33 },
+        };
+        const profile = profiles[mode] || profiles.desktop;
+        this.qualityScale = profile.scale;
+        this.minFrameInterval = profile.interval;
+        this.pixelRatio = Math.min(window.devicePixelRatio || 1, profile.dpr);
+        this.recalculateTargets();
+        this.resize();
+    }
+
+    recalculateTargets() {
+        const severityRatio = this.severity / 100;
+        this.targetCount = Math.max(45, Math.round((90 + 2450 * Math.pow(severityRatio, 1.72)) * this.qualityScale));
+        this.targetHeroCount = Math.max(1, Math.round((1 + 24 * Math.pow(severityRatio, 1.85)) * Math.max(0.3, this.qualityScale)));
+        this.reconcileParticleCount();
+        this.reconcileHeroCount();
+    }
+
     setTelemetry(frame) {
         this.windSpeed = Number(frame.weather?.wind_speed_ms) || 0;
         this.windDirection = Number(frame.weather?.wind_direction_deg) || 0;
@@ -196,10 +223,7 @@ export class DustParticleField {
         );
         const severityRatio = this.severity / 100;
         this.radiance = clamp(7 + 93 * Math.pow(severityRatio, 1.32), 7, 100);
-        this.targetCount = Math.round(90 + 2450 * Math.pow(severityRatio, 1.72));
-        this.targetHeroCount = Math.round(1 + 24 * Math.pow(severityRatio, 1.85));
-        this.reconcileParticleCount();
-        this.reconcileHeroCount();
+        this.recalculateTargets();
     }
 
     setEnabled(enabled) {
@@ -440,6 +464,12 @@ export class DustParticleField {
     }
 
     animate(now) {
+        if (document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
+            if (document.hidden) this.lastTime = now;
+            requestAnimationFrame(this.animate);
+            return;
+        }
+        this.lastRenderedAt = now;
         const dt = Math.min(0.05, Math.max(0.001, (now - this.lastTime) / 1000));
         this.lastTime = now;
         this.updateFps(now);

@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#061019">
-    <meta name="description" content="Live Gombe Harmattan dust storm and air-quality digital twin">
-    <title>Gombe Harmattan Digital Twin</title>
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=7.0.0">
+    <meta name="description" content="Live Gombe State air-quality visualisation twin">
+    <title>Gombe State Air Quality Visualisation Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=8.0.0">
     <link rel="preconnect" href="https://unpkg.com">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="/static/css/styles.css?v=7.0.0">
+    <link rel="stylesheet" href="/static/css/styles.css?v=8.0.0">
 </head>
 <body>
     <main class="app-shell">
@@ -31,7 +31,7 @@
                 <div class="brand-mark" aria-hidden="true"><span></span><span></span><span></span></div>
                 <div>
                     <p class="eyebrow">ENVIRONMENTAL COMMAND CENTRE · GOMBE STATE</p>
-                    <h1>Harmattan Dust & Air Quality Twin</h1>
+                    <h1>Gombe State Air Quality Visualisation Twin</h1>
                 </div>
             </section>
 
@@ -51,6 +51,7 @@
                 <div class="status-item clock-item">
                     <small>GOMBE LOCAL TIME</small>
                     <strong id="live-clock">--:--:--</strong>
+                    <span id="last-updated">Last updated: --:--:-- UTC+1</span>
                 </div>
                 <span class="mode-badge" id="mode-badge">DEMO</span>
                 <span class="platform-badge" id="platform-badge" title="Responsive platform mode"></span>
@@ -244,6 +245,8 @@
         </section>
 
 
+        <div class="map-last-updated glass-panel" id="map-last-updated" aria-live="polite">Last updated: --:--:-- UTC+1</div>
+
         <section class="live-motion-hud glass-panel" id="live-motion-hud" aria-live="polite">
             <div class="motion-beacon" aria-hidden="true"><i></i><i></i><i></i></div>
             <div class="motion-copy">
@@ -285,27 +288,73 @@
             <button type="button" id="toggle-radar" class="active" title="Toggle radar network"><span>◉</span><small>RADAR</small></button>
             <button type="button" id="toggle-boost" class="active" title="Toggle high-visibility sparkle boost"><span>✹</span><small>BOOST</small></button>
             <button type="button" id="toggle-rotate" title="Auto-rotate map"><span>↻</span><small>ORBIT</small></button>
+</nav>
+        <nav class="mobile-map-tools glass-panel" id="mobile-map-tools" aria-label="Mobile map tools">
+            <button type="button" id="mobile-zoom-in" aria-label="Zoom in" title="Zoom in">＋</button>
+            <button type="button" id="mobile-zoom-out" aria-label="Zoom out" title="Zoom out">−</button>
+            <button type="button" id="mobile-reset-view" aria-label="Reset Gombe State view" title="Reset map">⌂</button>
+            <button type="button" id="mobile-fullscreen" aria-label="Toggle fullscreen map" title="Fullscreen">⛶</button>
         </nav>
 
-        <div class="map-legend glass-panel">
-            <span><i class="legend-sensor"></i>Air sensor</span>
-            <span><i class="legend-fire"></i>Fire hotspot</span>
-            <span><i class="legend-radar"></i>Radar station</span>
-            <span><i class="legend-wind"></i>Wind flow</span>
-            <span><i class="legend-dust"></i>Severity-scaled dust points</span>
-            <span><i class="legend-heat"></i>Heat haze</span>
-        </div>
+        <section class="lga-info-card glass-panel" id="lga-info-card" aria-live="polite" aria-hidden="true">
+            <div class="lga-card-heading">
+                <div><small>LOCAL GOVERNMENT AREA</small><h2 id="lga-name">Select an LGA</h2></div>
+                <button type="button" id="lga-card-close" aria-label="Close LGA information">×</button>
+            </div>
+            <div class="lga-aqi-summary">
+                <div class="lga-aqi-orb" id="lga-aqi-orb"><strong id="lga-aqi">--</strong><small>AQI</small></div>
+                <div><b id="lga-aqi-category">Tap an outlined LGA</b><span>Modelled local estimate from the live state telemetry</span></div>
+            </div>
+            <div class="lga-metric-grid">
+                <article><small>PM2.5</small><strong><b id="lga-pm25">--</b> µg/m³</strong></article>
+                <article><small>PM10</small><strong><b id="lga-pm10">--</b> µg/m³</strong></article>
+                <article><small>TEMPERATURE</small><strong><b id="lga-temperature">--</b>°C</strong></article>
+                <article><small>HUMIDITY</small><strong><b id="lga-humidity">--</b>%</strong></article>
+                <article class="wide"><small>WIND</small><strong id="lga-wind">--</strong></article>
+            </div>
+            <div class="lga-health-advice">
+                <small>HEALTH RECOMMENDATION</small>
+                <p id="lga-health-recommendation">Tap an LGA to view a local air-quality assessment.</p>
+            </div>
+            <footer><span id="lga-updated">Updated: --</span><em>Tap another LGA to compare</em></footer>
+        </section>
+
+        <section class="map-legend glass-panel expanded" id="map-legend" aria-label="Map legend and air-quality severity scale">
+            <button type="button" class="legend-toggle" id="legend-toggle" aria-expanded="true">
+                <span>MAP LEGEND</span><b>−</b>
+            </button>
+            <div class="legend-content">
+                <div class="legend-items">
+                    <span><i class="legend-sensor"></i>Glowing blue node: air sensor</span>
+                    <span><i class="legend-dust"></i>Yellow point: airborne particle</span>
+                    <span><i class="legend-wind"></i>Cyan streamline: wind transport</span>
+                    <span><i class="legend-fire"></i>Red node: thermal hotspot</span>
+                    <span><i class="legend-radar"></i>Ring: radar station</span>
+                    <span><i class="legend-lga"></i>Outlined area: LGA</span>
+                </div>
+                <div class="aqi-scale" aria-label="Air quality severity scale">
+                    <div class="aqi-scale-bar"></div>
+                    <div class="aqi-scale-labels">
+                        <span><b>0–50</b>Good</span>
+                        <span><b>51–100</b>Moderate</span>
+                        <span><b>101–150</b>Unhealthy sensitive</span>
+                        <span><b>151–200</b>Unhealthy</span>
+                        <span><b>201+</b>Very unhealthy</span>
+                    </div>
+                </div>
+            </div>
+        </section>
 
         <div class="map-title-overlay">
-            <small>COMPLETE STATE-ONLY GEOSPATIAL TWIN</small>
+            <small>GOMBE STATE AIR QUALITY VISUALISATION</small>
             <strong>GOMBE STATE</strong>
-            <span id="map-subtitle">Particles and atmospheric vectors synchronised to telemetry</span>
+            <span id="map-subtitle">Live air-quality, weather and atmospheric-flow telemetry</span>
         </div>
 
         <div id="toast" role="status" aria-live="polite"></div>
     </main>
 
     <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-    <script type="module" src="/static/js/app.js?v=7.0.0"></script>
+    <script type="module" src="/static/js/app.js?v=8.0.0"></script>
 </body>
 </html>

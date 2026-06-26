@@ -24,7 +24,12 @@ export class HeatHazeField {
         this.frameCounter = 0;
         this.fpsWindowStarted = performance.now();
         this.visiblePacketCount = 0;
-        this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.6);
+        this.baseTargetPackets = 12;
+        this.qualityMode = "desktop";
+        this.qualityScale = 1;
+        this.minFrameInterval = 0;
+        this.lastRenderedAt = 0;
+        this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.45);
         this.resize = this.resize.bind(this);
         this.animate = this.animate.bind(this);
 
@@ -35,6 +40,23 @@ export class HeatHazeField {
         requestAnimationFrame(this.animate);
     }
 
+    setQuality(mode = "desktop") {
+        this.qualityMode = mode;
+        const profiles = {
+            desktop: { scale: 1, dpr: 1.45, interval: 0 },
+            tablet: { scale: 0.58, dpr: 1.12, interval: 24 },
+            mobile: { scale: 0.3, dpr: 1, interval: 40 },
+        };
+        const profile = profiles[mode] || profiles.desktop;
+        this.qualityScale = profile.scale;
+        this.minFrameInterval = profile.interval;
+        this.pixelRatio = Math.min(window.devicePixelRatio || 1, profile.dpr);
+        const target = Math.max(4, Math.round(this.baseTargetPackets * this.qualityScale));
+        if (this.wavePackets.length > target) this.wavePackets.length = target;
+        if (this.embers.length > Math.max(8, target * 2)) this.embers.length = Math.max(8, target * 2);
+        this.resize();
+    }
+
     setTelemetry(frame, metrics = {}) {
         this.temperature = Number(frame.weather?.temperature_c) || 0;
         this.hotspots = Array.isArray(frame.hotspots) ? frame.hotspots : [];
@@ -42,12 +64,13 @@ export class HeatHazeField {
         this.thermalIntensity = clamp(Number(metrics.thermalIntensity) || 0, 0, 100);
         this.peakFrp = Math.max(0, Number(metrics.peakFrp) || 0);
 
-        const targetPackets = Math.round(8 + this.heatLoad * 0.28 + this.hotspots.length * 2.5);
-        while (this.wavePackets.length < Math.min(58, targetPackets)) {
+        this.baseTargetPackets = Math.round(8 + this.heatLoad * 0.28 + this.hotspots.length * 2.5);
+        const targetPackets = Math.max(4, Math.round(this.baseTargetPackets * this.qualityScale));
+        while (this.wavePackets.length < Math.min(Math.round(58 * this.qualityScale), targetPackets)) {
             this.wavePackets.push(this.createWavePacket(true));
         }
-        if (this.wavePackets.length > targetPackets + 8) {
-            this.wavePackets.length = Math.max(targetPackets, this.wavePackets.length - 5);
+        if (this.wavePackets.length > targetPackets + 4) {
+            this.wavePackets.length = Math.max(targetPackets, this.wavePackets.length - 4);
         }
     }
 
@@ -149,7 +172,8 @@ export class HeatHazeField {
         this.ctx.strokeStyle = "rgba(255, 196, 104, 0.75)";
         this.ctx.lineWidth = this.boosted ? 1.15 : 0.75;
         const baseY = height * 0.72;
-        for (let row = 0; row < 9; row += 1) {
+        const shimmerRows = Math.max(4, Math.round(9 * Math.max(0.45, this.qualityScale)));
+        for (let row = 0; row < shimmerRows; row += 1) {
             this.ctx.beginPath();
             const y = baseY + row * 7;
             for (let x = -20; x <= width + 20; x += 8) {
@@ -249,7 +273,8 @@ export class HeatHazeField {
         const centerY = height * (0.62 + Math.cos(direction * 0.7) * 0.05);
         this.ctx.save();
         this.ctx.globalCompositeOperation = "lighter";
-        for (let ring = 0; ring < 4; ring += 1) {
+        const ringCount = Math.max(2, Math.round(4 * Math.max(0.5, this.qualityScale)));
+        for (let ring = 0; ring < ringCount; ring += 1) {
             const phase = (now * 0.00018 + ring * 0.23) % 1;
             const radius = 45 + phase * Math.max(width, height) * 0.42;
             this.ctx.globalAlpha = (1 - phase) * (0.07 + load * (this.boosted ? 0.18 : 0.1));
@@ -265,6 +290,12 @@ export class HeatHazeField {
     }
 
     animate(now) {
+        if (document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
+            if (document.hidden) this.lastTime = now;
+            requestAnimationFrame(this.animate);
+            return;
+        }
+        this.lastRenderedAt = now;
         const dt = Math.min(0.05, Math.max(0.001, (now - this.lastTime) / 1000));
         this.lastTime = now;
         this.updateFps(now);
@@ -277,12 +308,13 @@ export class HeatHazeField {
             this.drawAmbientVeil(now, width, height);
             this.drawThermalSweep(now, width, height);
 
-            if (now - this.lastPacketAt > Math.max(90, 430 - this.heatLoad * 3.1)) {
+            const packetInterval = Math.max(90, 430 - this.heatLoad * 3.1) / Math.max(0.35, this.qualityScale);
+            if (now - this.lastPacketAt > packetInterval) {
                 this.lastPacketAt = now;
                 this.wavePackets.push(this.createWavePacket(false));
                 if (this.hotspots.length && Math.random() < 0.72) {
                     const hotspot = this.hotspots[Math.floor(Math.random() * this.hotspots.length)];
-                    const emberCount = 1 + Math.floor(Math.random() * (2 + this.thermalIntensity / 28));
+                    const emberCount = Math.max(1, Math.round((1 + Math.floor(Math.random() * (2 + this.thermalIntensity / 28))) * Math.max(0.35, this.qualityScale)));
                     for (let index = 0; index < emberCount; index += 1) {
                         this.embers.push(this.createEmber(hotspot));
                     }

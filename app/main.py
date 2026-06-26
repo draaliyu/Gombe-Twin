@@ -14,14 +14,19 @@ from fastapi.staticfiles import StaticFiles
 from app.config import get_settings
 from app.models import TelemetryFrame
 from app.services.air_quality import OpenAQService
-from app.services.boundary import FALLBACK_GOMBE, fetch_gombe_boundary
+from app.services.boundary import (
+    FALLBACK_GOMBE,
+    FALLBACK_GOMBE_LGAS,
+    fetch_gombe_boundary,
+    fetch_gombe_lgas,
+)
 from app.services.firms import FirmsService
 from app.services.simulator import DigitalTwinSimulator
 from app.services.weather import WeatherService
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
-logger = logging.getLogger("harmattan-twin")
+logger = logging.getLogger("gombe-air-quality-twin")
 
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
@@ -55,19 +60,20 @@ manager = ConnectionManager()
 simulator = DigitalTwinSimulator(settings)
 latest_frame = simulator.next_frame(0)
 boundary_cache: dict[str, Any] | None = FALLBACK_GOMBE
+lga_cache: dict[str, Any] | None = FALLBACK_GOMBE_LGAS
 background_tasks: list[asyncio.Task] = []
 
 
 @contextlib.asynccontextmanager
 async def lifespan(_: FastAPI):
-    global background_tasks, boundary_cache
+    global background_tasks, boundary_cache, lga_cache
     client = httpx.AsyncClient(timeout=20.0, follow_redirects=True)
     weather_service = WeatherService(settings, client)
     air_service = OpenAQService(settings, client)
     firms_service = FirmsService(settings, client)
 
     background_tasks = [
-        asyncio.create_task(_load_boundary(client)),
+        asyncio.create_task(_load_geography(client)),
         asyncio.create_task(_refresh_loop("weather", weather_service.fetch, settings.weather_refresh_seconds)),
         asyncio.create_task(_refresh_loop("air_quality", air_service.fetch, settings.air_quality_refresh_seconds)),
         asyncio.create_task(_refresh_loop("firms", firms_service.fetch, settings.firms_refresh_seconds)),
@@ -83,8 +89,8 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="Gombe Harmattan Dust Storm & Air Quality Twin",
-    version="6.0.0",
+    title="Gombe State Air Quality Visualisation Twin",
+    version="8.0.0",
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -100,15 +106,19 @@ async def disable_frontend_cache(request, call_next):
     return response
 
 
-async def _load_boundary(client: httpx.AsyncClient) -> None:
-    global boundary_cache
+async def _load_geography(client: httpx.AsyncClient) -> None:
+    global boundary_cache, lga_cache
     try:
         boundary_cache = await fetch_gombe_boundary(client)
-        logger.info("Loaded Gombe administrative boundary")
+        logger.info("Loaded Gombe State administrative boundary")
+        lga_cache = await fetch_gombe_lgas(client, boundary_cache)
+        logger.info("Loaded %s Gombe LGA features", len(lga_cache.get("features", [])))
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        logger.warning("Boundary refresh failed; using fallback geometry: %s", exc)
+        logger.warning("Geography refresh failed; using fallback geometry: %s", exc)
+        boundary_cache = boundary_cache or FALLBACK_GOMBE
+        lga_cache = lga_cache or FALLBACK_GOMBE_LGAS
 
 
 async def _refresh_loop(name: str, fetcher, interval_seconds: int) -> None:
@@ -165,6 +175,11 @@ async def snapshot() -> TelemetryFrame:
 @app.get("/api/boundary")
 async def boundary() -> JSONResponse:
     return JSONResponse(boundary_cache or {"type": "FeatureCollection", "features": []})
+
+
+@app.get("/api/lgas")
+async def lgas() -> JSONResponse:
+    return JSONResponse(lga_cache or FALLBACK_GOMBE_LGAS)
 
 
 @app.websocket("/ws/live")

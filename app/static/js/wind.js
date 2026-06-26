@@ -22,14 +22,19 @@ export class WindFlowField {
         this.dispersion = 55;
         this.streams = [];
         this.wavefronts = [];
+        this.baseTargetCount = 150;
         this.targetCount = 150;
+        this.qualityMode = "desktop";
+        this.qualityScale = 1;
+        this.minFrameInterval = 0;
+        this.lastRenderedAt = 0;
         this.visibleCount = 0;
         this.lastTime = performance.now();
         this.lastWaveSpawn = 0;
         this.fps = 60;
         this.frameCounter = 0;
         this.fpsWindowStarted = performance.now();
-        this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.7);
+        this.pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
         this.resize = this.resize.bind(this);
         this.animate = this.animate.bind(this);
 
@@ -40,13 +45,30 @@ export class WindFlowField {
         requestAnimationFrame(this.animate);
     }
 
+    setQuality(mode = "desktop") {
+        this.qualityMode = mode;
+        const profiles = {
+            desktop: { scale: 1, dpr: 1.5, interval: 0 },
+            tablet: { scale: 0.62, dpr: 1.15, interval: 22 },
+            mobile: { scale: 0.36, dpr: 1, interval: 33 },
+        };
+        const profile = profiles[mode] || profiles.desktop;
+        this.qualityScale = profile.scale;
+        this.minFrameInterval = profile.interval;
+        this.pixelRatio = Math.min(window.devicePixelRatio || 1, profile.dpr);
+        this.targetCount = Math.max(36, Math.round(this.baseTargetCount * this.qualityScale));
+        this.reconcileCount();
+        this.resize();
+    }
+
     setTelemetry(frame) {
         this.windSpeed = Number(frame.weather?.wind_speed_ms) || 0;
         this.windDirection = Number(frame.weather?.wind_direction_deg) || 0;
         this.gustSpeed = Number(frame.weather?.wind_gust_ms) || this.windSpeed;
         this.humidity = Number(frame.weather?.humidity_pct) || 0;
         this.dispersion = Number(frame.derived?.dispersion_score) || 0;
-        this.targetCount = Math.round(110 + Math.min(140, this.windSpeed * 9));
+        this.baseTargetCount = Math.round(110 + Math.min(140, this.windSpeed * 9));
+        this.targetCount = Math.max(36, Math.round(this.baseTargetCount * this.qualityScale));
         this.reconcileCount();
     }
 
@@ -154,7 +176,8 @@ export class WindFlowField {
         const transportDirection = (this.windDirection + 180) % 360;
         const angle = (90 - transportDirection) * Math.PI / 180;
         const diagonal = Math.hypot(width, height);
-        const lineCount = this.boosted ? 12 : 8;
+        const baseLineCount = this.boosted ? 12 : 8;
+        const lineCount = Math.max(4, Math.round(baseLineCount * Math.max(0.45, this.qualityScale)));
         const speed = 0.055 + this.windSpeed * 0.008;
 
         this.ctx.save();
@@ -241,6 +264,12 @@ export class WindFlowField {
     }
 
     animate(now) {
+        if (document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
+            if (document.hidden) this.lastTime = now;
+            requestAnimationFrame(this.animate);
+            return;
+        }
+        this.lastRenderedAt = now;
         const dt = Math.min(0.05, Math.max(0.001, (now - this.lastTime) / 1000));
         this.lastTime = now;
         this.updateFps(now);

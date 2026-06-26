@@ -1,1 +1,1 @@
-"""Harmattan Dust Storm and Air Quality Digital Twin."""
+"""Gombe State Air Quality Visualisation Twin."""

@@ -1,7 +1,7 @@
-import { DustParticleField } from "./dust.js?v=7.0.0";
-import { WindFlowField } from "./wind.js?v=7.0.0";
-import { HeatHazeField } from "./heat.js?v=7.0.0";
-import { LiveCharts } from "./charts.js?v=7.0.0";
+import { DustParticleField } from "./dust.js?v=8.0.0";
+import { WindFlowField } from "./wind.js?v=8.0.0";
+import { HeatHazeField } from "./heat.js?v=8.0.0";
+import { LiveCharts } from "./charts.js?v=8.0.0";
 
 const GOMBE_VIEW = { center: [11.24, 10.43], zoom: 7.72, pitch: 0, bearing: 0 };
 const FALLBACK_GOMBE_BOUNDS = { west: 10.30, south: 9.48, east: 12.24, north: 11.49 };
@@ -53,6 +53,10 @@ const state = {
     boundaryBounds: { ...FALLBACK_GOMBE_BOUNDS },
     boundaryReady: false,
     mapReady: false,
+    lgaFeatures: [],
+    selectedLgaName: null,
+    platformMode: "desktop",
+    lastLgaMapUpdate: 0,
 };
 
 const elementIds = [
@@ -72,6 +76,9 @@ const elementIds = [
     "motion-status", "animation-fps", "visible-sparks", "visible-wind", "active-flashes", "sparkle-severity",
     "map-thermal-state", "map-ambient-fill", "map-ambient-value", "map-radiance-fill", "map-radiance-value",
     "map-frp-fill", "map-frp-value", "map-exposure-fill", "map-exposure-value",
+    "last-updated", "map-last-updated", "lga-info-card", "lga-name", "lga-aqi", "lga-aqi-orb", "lga-aqi-category",
+    "lga-pm25", "lga-pm10", "lga-temperature", "lga-humidity", "lga-wind",
+    "lga-health-recommendation", "lga-updated",
 ];
 const elements = Object.fromEntries(elementIds.map((id) => [id, document.getElementById(id)]));
 
@@ -79,10 +86,22 @@ const elements = Object.fromEntries(elementIds.map((id) => [id, document.getElem
 function updatePlatformMode() {
     const width = window.innerWidth || document.documentElement.clientWidth || 1200;
     const mode = width <= 640 ? "mobile" : width <= 980 ? "tablet" : "desktop";
+    const previousMode = state.platformMode;
+    state.platformMode = mode;
     document.body.classList.toggle("platform-mobile", mode === "mobile");
     document.body.classList.toggle("platform-tablet", mode === "tablet");
     document.body.classList.toggle("platform-desktop", mode === "desktop");
     document.documentElement.style.setProperty("--client-width", `${width}px`);
+    if (previousMode !== mode) applyPerformanceProfile();
+    const legend = document.getElementById("map-legend");
+    const legendToggle = document.getElementById("legend-toggle");
+    if (legend && legendToggle && !legend.dataset.userToggled) {
+        const expanded = mode === "desktop";
+        legend.classList.toggle("expanded", expanded);
+        legendToggle.setAttribute("aria-expanded", String(expanded));
+        const icon = legendToggle.querySelector("b");
+        if (icon) icon.textContent = expanded ? "−" : "+";
+    }
     if (state.mapReady) {
         window.setTimeout(() => {
             map.resize();
@@ -92,18 +111,16 @@ function updatePlatformMode() {
     }
 }
 
-updatePlatformMode();
-window.addEventListener("resize", updatePlatformMode);
-window.addEventListener("orientationchange", () => window.setTimeout(updatePlatformMode, 280));
-
 const map = new maplibregl.Map({
     container: "map",
     style: "https://tiles.openfreemap.org/styles/liberty",
     ...GOMBE_VIEW,
     maxPitch: 75,
-    antialias: true,
+    antialias: window.innerWidth > 980,
     attributionControl: false,
     cooperativeGestures: false,
+    renderWorldCopies: false,
+    fadeDuration: 0,
 });
 
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true, showCompass: false }), "bottom-left");
@@ -113,6 +130,22 @@ const heatField = new HeatHazeField(map, document.getElementById("heat-canvas"))
 const dustField = new DustParticleField(map, document.getElementById("dust-canvas"));
 const charts = new LiveCharts(document.getElementById("particle-chart"), document.getElementById("wind-chart"));
 const appShell = document.querySelector(".app-shell");
+
+function applyPerformanceProfile() {
+    const mode = state.platformMode || "desktop";
+    dustField?.setQuality?.(mode);
+    windField?.setQuality?.(mode);
+    heatField?.setQuality?.(mode);
+}
+
+updatePlatformMode();
+let platformResizeTimer = 0;
+function schedulePlatformUpdate(delay = 120) {
+    window.clearTimeout(platformResizeTimer);
+    platformResizeTimer = window.setTimeout(updatePlatformMode, delay);
+}
+window.addEventListener("resize", () => schedulePlatformUpdate(120), { passive: true });
+window.addEventListener("orientationchange", () => schedulePlatformUpdate(280), { passive: true });
 appShell.classList.add("visual-boost");
 dustField.setBoost(true);
 windField.setBoost(true);
@@ -121,6 +154,7 @@ heatField.setBoost(true);
 map.on("load", async () => {
     addTerrain();
     await addBoundary();
+    await addLgaLayers();
     addDynamicLayers();
     createRadarMarkers();
     state.mapReady = true;
@@ -139,6 +173,7 @@ const mapResizeObserver = new ResizeObserver(() => {
 mapResizeObserver.observe(map.getContainer());
 
 function addTerrain() {
+    if (state.platformMode !== "desktop") return;
     try {
         map.addSource("terrain-dem", {
             type: "raster-dem",
@@ -481,6 +516,247 @@ async function addBoundary() {
     }
 }
 
+
+function lgaDisplayName(properties = {}) {
+    return String(properties.lga_name || properties.shapeName || properties.shape_name || properties.name || "Local Government Area");
+}
+
+function geometryRepresentativePoint(geometry) {
+    if (!geometry) return [11.1673, 10.2897];
+    if (geometry.type === "Point") return geometry.coordinates;
+    const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.type === "MultiPolygon" ? geometry.coordinates : [];
+    const points = polygons.flatMap((polygon) => polygon?.[0] || []);
+    if (!points.length) return [11.1673, 10.2897];
+    const totals = points.reduce((accumulator, coordinate) => [
+        accumulator[0] + Number(coordinate[0] || 0),
+        accumulator[1] + Number(coordinate[1] || 0),
+    ], [0, 0]);
+    return [totals[0] / points.length, totals[1] / points.length];
+}
+
+function stableNameFactor(name) {
+    let hash = 2166136261;
+    for (const character of String(name)) {
+        hash ^= character.charCodeAt(0);
+        hash = Math.imul(hash, 16777619);
+    }
+    return ((hash >>> 0) % 1000) / 1000;
+}
+
+function aqiCategoryAndColor(aqi) {
+    if (aqi <= 50) return { category: "Good", color: "#43d17c" };
+    if (aqi <= 100) return { category: "Moderate", color: "#f0d34f" };
+    if (aqi <= 150) return { category: "Unhealthy for sensitive groups", color: "#ff963f" };
+    if (aqi <= 200) return { category: "Unhealthy", color: "#ef4f58" };
+    return { category: "Very unhealthy", color: "#8c4ab8" };
+}
+
+function localHealthRecommendation(aqi) {
+    if (aqi <= 50) return "Air quality is suitable for normal outdoor activity.";
+    if (aqi <= 100) return "Sensitive residents should monitor symptoms during prolonged outdoor activity.";
+    if (aqi <= 150) return "Children, older adults and people with respiratory conditions should reduce prolonged outdoor exertion.";
+    if (aqi <= 200) return "Reduce outdoor exposure, close windows during high particle periods and use suitable respiratory protection when necessary.";
+    return "Avoid non-essential outdoor exposure. Vulnerable residents should remain indoors with cleaner air and follow local health advice.";
+}
+
+function calculateLocalLgaMetrics(name, frame, coordinate = [11.1673, 10.2897]) {
+    const seed = stableNameFactor(name);
+    const longitudeInfluence = Math.sin(Number(coordinate[0]) * 3.1 + seed * 5.7) * 0.055;
+    const latitudeInfluence = Math.cos(Number(coordinate[1]) * 3.7 + seed * 4.3) * 0.045;
+    const spatialFactor = Math.max(0.78, Math.min(1.22, 0.88 + seed * 0.24 + longitudeInfluence + latitudeInfluence));
+    const pm25 = Math.max(0, Number(frame.air_quality?.pm25 || 0) * spatialFactor);
+    const pm10 = Math.max(0, Number(frame.air_quality?.pm10 || 0) * (spatialFactor * 0.96 + 0.035));
+    const aqi = Math.max(0, Math.min(500, Math.round(Number(frame.air_quality?.aqi || 0) * (0.9 + seed * 0.2))));
+    const temperature = Number(frame.weather?.temperature_c || 0) + (seed - 0.5) * 2.2;
+    const humidity = Math.max(0, Math.min(100, Number(frame.weather?.humidity_pct || 0) + (0.5 - seed) * 8));
+    const windSpeed = Math.max(0, Number(frame.weather?.wind_speed_ms || 0) * (0.9 + seed * 0.18));
+    const windDirection = (Number(frame.weather?.wind_direction_deg || 0) + (seed - 0.5) * 18 + 360) % 360;
+    const severity = aqiCategoryAndColor(aqi);
+    return {
+        aqi,
+        category: severity.category,
+        color: severity.color,
+        pm25,
+        pm10,
+        temperature,
+        humidity,
+        windSpeed,
+        windDirection,
+        healthRecommendation: localHealthRecommendation(aqi),
+    };
+}
+
+function enrichLgaCollection(frame) {
+    return {
+        type: "FeatureCollection",
+        features: state.lgaFeatures.map((feature, index) => {
+            const name = lgaDisplayName(feature.properties);
+            const coordinate = geometryRepresentativePoint(feature.geometry);
+            const metrics = calculateLocalLgaMetrics(name, frame, coordinate);
+            return {
+                ...feature,
+                id: feature.id ?? index,
+                properties: {
+                    ...(feature.properties || {}),
+                    lga_name: name,
+                    local_aqi: metrics.aqi,
+                    local_pm25: Number(metrics.pm25.toFixed(1)),
+                    local_pm10: Number(metrics.pm10.toFixed(1)),
+                    local_temperature: Number(metrics.temperature.toFixed(1)),
+                    local_humidity: Number(metrics.humidity.toFixed(0)),
+                    local_wind_speed: Number(metrics.windSpeed.toFixed(1)),
+                    local_wind_direction: Number(metrics.windDirection.toFixed(0)),
+                    local_category: metrics.category,
+                    local_color: metrics.color,
+                },
+            };
+        }),
+    };
+}
+
+function renderLgaCard(name, frame, coordinate) {
+    if (!frame) return;
+    const metrics = calculateLocalLgaMetrics(name, frame, coordinate);
+    state.selectedLgaName = name;
+    setText("lga-name", name);
+    setText("lga-aqi", metrics.aqi);
+    setText("lga-aqi-category", metrics.category);
+    setText("lga-pm25", metrics.pm25.toFixed(1));
+    setText("lga-pm10", metrics.pm10.toFixed(1));
+    setText("lga-temperature", metrics.temperature.toFixed(1));
+    setText("lga-humidity", metrics.humidity.toFixed(0));
+    setText("lga-wind", `${metrics.windSpeed.toFixed(1)} m/s · ${compassDirection(metrics.windDirection)} · ${metrics.windDirection.toFixed(0)}°`);
+    setText("lga-health-recommendation", metrics.healthRecommendation);
+    setText("lga-updated", `Updated: ${formatGombeTimestamp(frame.generated_at)}`);
+    elements["lga-aqi-orb"]?.style.setProperty("--lga-aqi-color", metrics.color);
+    elements["lga-info-card"]?.classList.add("open");
+    elements["lga-info-card"]?.setAttribute("aria-hidden", "false");
+    if (map.getLayer("lga-selected-line")) map.setFilter("lga-selected-line", ["==", ["get", "lga_name"], name]);
+    if (map.getLayer("lga-selected-point")) map.setFilter("lga-selected-point", ["==", ["get", "lga_name"], name]);
+}
+
+function closeLgaCard() {
+    state.selectedLgaName = null;
+    elements["lga-info-card"]?.classList.remove("open");
+    elements["lga-info-card"]?.setAttribute("aria-hidden", "true");
+    if (map.getLayer("lga-selected-line")) map.setFilter("lga-selected-line", ["==", ["get", "lga_name"], "__none__"]);
+    if (map.getLayer("lga-selected-point")) map.setFilter("lga-selected-point", ["==", ["get", "lga_name"], "__none__"]);
+}
+
+function hasPolygonLgaFeatures(features) {
+    return features.some((feature) => ["Polygon", "MultiPolygon"].includes(feature?.geometry?.type));
+}
+
+async function refreshLgaData(attempt = 0) {
+    if (attempt >= 3 || hasPolygonLgaFeatures(state.lgaFeatures)) return;
+    try {
+        const response = await fetch("/api/lgas", { cache: "no-store" });
+        if (!response.ok) throw new Error(`LGA refresh failed: ${response.status}`);
+        const collection = await response.json();
+        const features = Array.isArray(collection.features) ? collection.features : [];
+        if (features.length) {
+            state.lgaFeatures = features;
+            const source = map.getSource("gombe-lgas");
+            if (source) source.setData(state.frame ? enrichLgaCollection(state.frame) : collection);
+        }
+    } catch (error) {
+        console.warn("Deferred LGA refresh failed", error);
+    }
+    if (!hasPolygonLgaFeatures(state.lgaFeatures)) {
+        window.setTimeout(() => refreshLgaData(attempt + 1), 5000);
+    }
+}
+
+async function addLgaLayers() {
+    try {
+        const response = await fetch("/api/lgas", { cache: "no-store" });
+        if (!response.ok) throw new Error(`LGA request failed: ${response.status}`);
+        const collection = await response.json();
+        state.lgaFeatures = Array.isArray(collection.features) ? collection.features : [];
+        if (!state.lgaFeatures.length) return;
+        const initialData = state.frame ? enrichLgaCollection(state.frame) : collection;
+        map.addSource("gombe-lgas", { type: "geojson", data: initialData, generateId: true });
+        const aqiColorExpression = [
+            "interpolate", ["linear"], ["coalesce", ["get", "local_aqi"], 0],
+            0, "#43d17c", 50, "#43d17c", 100, "#f0d34f", 150, "#ff963f", 200, "#ef4f58", 300, "#8c4ab8",
+        ];
+        map.addLayer({
+            id: "lga-fill",
+            type: "fill",
+            source: "gombe-lgas",
+            filter: ["==", ["geometry-type"], "Polygon"],
+            paint: { "fill-color": aqiColorExpression, "fill-opacity": 0.09 },
+        });
+        map.addLayer({
+            id: "lga-line",
+            type: "line",
+            source: "gombe-lgas",
+            filter: ["==", ["geometry-type"], "Polygon"],
+            paint: { "line-color": aqiColorExpression, "line-width": 1.05, "line-opacity": 0.58 },
+        });
+        map.addLayer({
+            id: "lga-selected-line",
+            type: "line",
+            source: "gombe-lgas",
+            filter: ["==", ["get", "lga_name"], "__none__"],
+            paint: { "line-color": "#ffffff", "line-width": 3, "line-opacity": 0.95, "line-blur": 0.3 },
+        });
+        map.addLayer({
+            id: "lga-points",
+            type: "circle",
+            source: "gombe-lgas",
+            filter: ["==", ["geometry-type"], "Point"],
+            paint: {
+                "circle-radius": 8,
+                "circle-color": aqiColorExpression,
+                "circle-opacity": 0.82,
+                "circle-stroke-color": "#ffffff",
+                "circle-stroke-width": 1.5,
+            },
+        });
+        map.addLayer({
+            id: "lga-selected-point",
+            type: "circle",
+            source: "gombe-lgas",
+            filter: ["==", ["get", "lga_name"], "__none__"],
+            paint: { "circle-radius": 13, "circle-color": "rgba(255,255,255,0.08)", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2.5 },
+        });
+
+        const interactiveLayers = ["lga-fill", "lga-points"];
+        for (const layerId of interactiveLayers) {
+            map.on("mouseenter", layerId, () => { map.getCanvas().style.cursor = "pointer"; });
+            map.on("mouseleave", layerId, () => { map.getCanvas().style.cursor = ""; });
+            map.on("click", layerId, (event) => {
+                const feature = event.features?.[0];
+                if (!feature) return;
+                const name = lgaDisplayName(feature.properties);
+                renderLgaCard(name, state.frame, geometryRepresentativePoint(feature.geometry));
+            });
+        }
+        if (!hasPolygonLgaFeatures(state.lgaFeatures)) {
+            window.setTimeout(() => refreshLgaData(0), 5000);
+        }
+    } catch (error) {
+        console.warn("LGA layer unavailable", error);
+        showToast("LGA boundaries are temporarily unavailable");
+    }
+}
+
+function updateLgaLayer(frame) {
+    const source = map.getSource("gombe-lgas");
+    if (!source || !state.lgaFeatures.length) return;
+    const now = Date.now();
+    const updateInterval = state.platformMode === "mobile" ? 5000 : state.platformMode === "tablet" ? 3500 : 2000;
+    if (now - state.lastLgaMapUpdate >= updateInterval) {
+        state.lastLgaMapUpdate = now;
+        source.setData(enrichLgaCollection(frame));
+    }
+    if (state.selectedLgaName) {
+        const feature = state.lgaFeatures.find((item) => lgaDisplayName(item.properties) === state.selectedLgaName);
+        if (feature) renderLgaCard(state.selectedLgaName, frame, geometryRepresentativePoint(feature.geometry));
+    }
+}
+
 function addDynamicLayers() {
     map.addSource("air-sensors", { type: "geojson", data: emptyFeatureCollection() });
     map.addLayer({
@@ -693,6 +969,7 @@ function updateMap(frame) {
         })),
     });
     map.getSource("wind-field").setData(createWindField(frame.weather.wind_direction_deg, frame.weather.wind_speed_ms));
+    updateLgaLayer(frame);
 
     if (map.getLayer("dust-heat")) {
         const dustSeverity = Number(frame.derived?.dust_index) || 0;
@@ -712,8 +989,10 @@ function createWindField(direction, speed) {
     const bearing = (90 - transportDirection) * Math.PI / 180;
     const length = 0.04 + Math.min(0.12, speed * 0.0065);
     const bounds = state.boundaryBounds;
-    const longitudeStep = Math.max(0.22, (bounds.east - bounds.west) / 7);
-    const latitudeStep = Math.max(0.22, (bounds.north - bounds.south) / 7);
+    const gridDivisor = state.platformMode === "mobile" ? 4.2 : state.platformMode === "tablet" ? 5.4 : 7;
+    const minimumStep = state.platformMode === "mobile" ? 0.34 : state.platformMode === "tablet" ? 0.27 : 0.22;
+    const longitudeStep = Math.max(minimumStep, (bounds.east - bounds.west) / gridDivisor);
+    const latitudeStep = Math.max(minimumStep, (bounds.north - bounds.south) / gridDivisor);
     for (let latitude = bounds.south; latitude <= bounds.north; latitude += latitudeStep) {
         for (let longitude = bounds.west; longitude <= bounds.east; longitude += longitudeStep) {
             if (!pointInBoundary(longitude, latitude)) continue;
@@ -831,6 +1110,9 @@ function renderFrame(frame, previous) {
 
     setText("frame-sequence", String(frame.sequence).padStart(6, "0"));
     setText("packet-age", `${Math.round(packetAge)} ms`);
+    const updatedLabel = `Last updated: ${formatGombeTimestamp(frame.generated_at)}`;
+    setText("last-updated", updatedLabel);
+    setText("map-last-updated", updatedLabel);
     setText("pm25-value", frame.air_quality.pm25.toFixed(1));
     setText("pm10-value", frame.air_quality.pm10.toFixed(1));
     setText("pm25-delta", formatDelta(pm25Delta));
@@ -988,6 +1270,18 @@ function setVerticalMeter(id, value) {
     if (element) element.style.height = `${Math.max(3, Math.min(100, value))}%`;
 }
 
+function formatGombeTimestamp(value) {
+    const date = value ? new Date(value) : new Date();
+    const time = new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+        timeZone: "Africa/Lagos",
+    }).format(date);
+    return `${time} UTC+1`;
+}
+
 function formatDelta(delta) {
     if (Math.abs(delta) < 0.05) return "Stable this second";
     return `${delta > 0 ? "▲" : "▼"} ${Math.abs(delta).toFixed(1)} µg/m³ this second`;
@@ -1105,7 +1399,8 @@ updateClock();
 
 let lastMapPulseAt = 0;
 function animateMapLayers(now) {
-    if (state.mapReady && now - lastMapPulseAt >= 80) {
+    const pulseInterval = state.platformMode === "mobile" ? 260 : state.platformMode === "tablet" ? 160 : 80;
+    if (!document.hidden && state.mapReady && now - lastMapPulseAt >= pulseInterval) {
         lastMapPulseAt = now;
         const pulse = 0.5 + 0.5 * Math.sin(Date.now() / 420);
         if (map.getLayer("fire-glow")) map.setPaintProperty("fire-glow", "circle-opacity", 0.09 + pulse * 0.13);
@@ -1119,14 +1414,61 @@ function animateMapLayers(now) {
 animateMapLayers();
 
 function autoRotateFrame() {
-    if (state.autoRotate && !map.isMoving()) {
+    if (!document.hidden && state.platformMode === "desktop" && state.autoRotate && !map.isMoving()) {
         map.rotateTo((map.getBearing() + 0.045) % 360, { duration: 0 });
     }
     requestAnimationFrame(autoRotateFrame);
 }
 autoRotateFrame();
 
+async function toggleMapFullscreen() {
+    try {
+        if (document.fullscreenElement) {
+            await document.exitFullscreen();
+            return;
+        }
+        if (appShell.requestFullscreen) {
+            await appShell.requestFullscreen();
+            return;
+        }
+    } catch (error) {
+        console.warn("Native fullscreen unavailable", error);
+    }
+    document.body.classList.toggle("map-fullscreen");
+    window.setTimeout(() => {
+        map.resize();
+        updateSpatialOverlays();
+        focusGombeBoundary(300);
+    }, 80);
+}
+
+document.addEventListener("fullscreenchange", () => {
+    document.body.classList.toggle("map-fullscreen", Boolean(document.fullscreenElement));
+    window.setTimeout(() => {
+        map.resize();
+        updateSpatialOverlays();
+        focusGombeBoundary(300);
+    }, 100);
+});
+
 function bindControls() {
+    const legend = document.getElementById("map-legend");
+    const legendToggle = document.getElementById("legend-toggle");
+    legendToggle?.addEventListener("click", () => {
+        const expanded = !legend.classList.contains("expanded");
+        legend.dataset.userToggled = "true";
+        legend.classList.toggle("expanded", expanded);
+        legendToggle.setAttribute("aria-expanded", String(expanded));
+        const icon = legendToggle.querySelector("b");
+        if (icon) icon.textContent = expanded ? "−" : "+";
+    });
+
+    document.getElementById("lga-card-close")?.addEventListener("click", closeLgaCard);
+    document.getElementById("mobile-zoom-in")?.addEventListener("click", () => map.zoomIn({ duration: 250 }));
+    document.getElementById("mobile-zoom-out")?.addEventListener("click", () => map.zoomOut({ duration: 250 }));
+    document.getElementById("mobile-reset-view")?.addEventListener("click", () => focusGombeBoundary(450));
+    document.getElementById("mobile-fullscreen")?.addEventListener("click", toggleMapFullscreen);
+
     document.getElementById("reset-view").addEventListener("click", () => {
         focusGombeBoundary(1500);
     });
@@ -1182,6 +1524,10 @@ function bindControls() {
     });
 
     document.getElementById("toggle-rotate").addEventListener("click", (event) => {
+        if (state.platformMode !== "desktop") {
+            showToast("Orbit is disabled on mobile and tablet to preserve smooth performance");
+            return;
+        }
         state.autoRotate = !state.autoRotate;
         event.currentTarget.classList.toggle("active", state.autoRotate);
         map.easeTo({ pitch: state.autoRotate ? 28 : 0, duration: 650, essential: true });
@@ -1207,7 +1553,7 @@ function updateAnimationHud() {
     if (hud) hud.classList.toggle("motion-paused", !(state.particlesEnabled || state.windEnabled || state.heatEnabled));
 }
 
-window.setInterval(updateAnimationHud, 250);
+window.setInterval(updateAnimationHud, state.platformMode === "mobile" ? 750 : 350);
 updateAnimationHud();
 
 bindControls();

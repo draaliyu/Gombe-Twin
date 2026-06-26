@@ -43,7 +43,7 @@ def test_high_visibility_motion_features_are_loaded() -> None:
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
     wind_js = (STATIC_ROOT / "js" / "wind.js").read_text(encoding="utf-8")
 
-    assert "?v=7.0.0" in html
+    assert "?v=8.0.0" in html
     assert "V6 CLEAR-MAP LAYOUT + SMART TOWN LABELS" in css
     assert "updateAnimationHud" in app_js
     assert "toggle-boost" in app_js
@@ -79,7 +79,7 @@ def test_clear_map_layout_and_smart_labels_are_loaded() -> None:
     css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
 
-    assert 'href="/static/favicon.svg?v=7.0.0"' in html
+    assert 'href="/static/favicon.svg?v=8.0.0"' in html
     assert "--map-frame-left" in css
     assert ".gombe-place-marker" in css
     assert ".place-leader" in css
@@ -94,3 +94,39 @@ def test_favicon_route_is_declared() -> None:
     assert '@app.get("/favicon.ico"' in main_py
     assert favicon.exists()
     assert "<svg" in favicon.read_text(encoding="utf-8")
+
+
+def test_v8_lga_legend_mobile_tools_and_timestamp_exist() -> None:
+    html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
+    app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
+
+    for element_id in {
+        "map-legend", "legend-toggle", "last-updated", "map-last-updated", "mobile-map-tools",
+        "mobile-zoom-in", "mobile-zoom-out", "mobile-reset-view",
+        "mobile-fullscreen", "lga-info-card", "lga-aqi",
+        "lga-pm25", "lga-pm10", "lga-health-recommendation",
+    }:
+        assert f'id="{element_id}"' in html
+    assert "Gombe State Air Quality Visualisation Twin" in html
+    assert "aqi-scale-bar" in css
+    assert "addLgaLayers" in app_js
+    assert "calculateLocalLgaMetrics" in app_js
+    assert "formatGombeTimestamp" in app_js
+
+
+def test_v8_adaptive_render_quality_is_enabled() -> None:
+    for filename in {"dust.js", "wind.js", "heat.js"}:
+        source = (STATIC_ROOT / "js" / filename).read_text(encoding="utf-8")
+        assert "setQuality" in source
+        assert "minFrameInterval" in source
+        assert "document.hidden" in source
+
+
+def test_lga_endpoint_and_geography_loader_are_declared() -> None:
+    main_py = (PROJECT_ROOT / "app" / "main.py").read_text(encoding="utf-8")
+    boundary_py = (PROJECT_ROOT / "app" / "services" / "boundary.py").read_text(encoding="utf-8")
+    assert '@app.get("/api/lgas")' in main_py
+    assert "fetch_gombe_lgas" in main_py
+    assert "FALLBACK_GOMBE_LGAS" in boundary_py
+    assert "ADM2" in boundary_py

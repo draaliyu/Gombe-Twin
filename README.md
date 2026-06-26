@@ -1,98 +1,95 @@
-# Gombe Harmattan Dust Storm & Air Quality Digital Twin — Version 7
+# Gombe State Air Quality Visualisation Twin — Version 8
 
-Version 7 adds a platform-aware responsive interface. Desktop keeps the full command-centre layout, tablets and mobile phones switch to a scrollable app layout where the complete Gombe State map stays visible at the top and every telemetry panel remains accessible below it.
+A responsive FastAPI and MapLibre environmental visualisation platform for Gombe State. The application streams weather, particulate, thermal-hotspot and modelled atmospheric-flow information through WebSockets and adapts its rendering load to desktop, tablet and mobile devices.
 
-## Version 7 responsive behaviour
+## Version 8 improvements
 
-- Desktop: left and right command rails, central full Gombe map, bottom chart deck.
-- Tablet: complete Gombe map at the top, horizontal layer controls, all panels stacked below.
-- Mobile: compact app header, Gombe map first, scrollable panels, charts, source integrity and radar cards.
-- Automatic platform detection adds mobile/tablet/desktop classes at runtime.
-- Rotation/orientation changes trigger map resize, boundary refit and smart label recalculation.
-- No panel is hidden on mobile; weather, air quality, risk, wind, heat, data sources, radar and charts remain available.
+### Clear map interpretation
 
+- Expandable map legend explaining:
+  - glowing blue air-sensor nodes;
+  - yellow airborne-particle points;
+  - cyan wind streamlines;
+  - red thermal hotspots;
+  - radar rings;
+  - LGA outlines.
+- Air-quality severity scale:
+  - green: good;
+  - yellow: moderate;
+  - orange: unhealthy for sensitive groups;
+  - red: unhealthy;
+  - purple: very unhealthy.
+- A live `Last updated: HH:MM:SS UTC+1` timestamp is shown on the dashboard and map.
 
-## Version 6.0 — Clear Gombe map, smart labels and favicon fix
+### Interactive LGA information
 
-Version 6 keeps the complete live Harmattan simulation while guaranteeing that the Gombe State boundary and its configured towns/villages remain visible. Data panels now sit outside the central map frame instead of covering it.
+The backend now exposes:
 
-### Version 6 improvements
+```text
+GET /api/lgas
+```
 
-- The map has its own central viewport between the left and right telemetry rails.
-- The lower chart deck and map controls are outside the mapped state area.
-- `fitBounds` now uses the actual central map dimensions rather than compensating for full-screen overlays.
-- The default home view is top-down, north-up and fitted to the complete administrative boundary.
-- Enabling ORBIT temporarily tilts the map; disabling it returns to the complete fitted view.
-- Every configured Gombe town and village label is kept visible using adaptive placement.
-- Labels move through candidate positions and radial searches to avoid one another.
-- Leader lines connect displaced labels to their true geographic coordinates.
-- Radar station names are hidden until hover so they do not cover town names.
-- The duplicate map thermal card and title overlay are removed from the mapped state area; the full readings remain in the dashboard panels.
-- A responsive `ResizeObserver` resizes and refits the state when the browser or panel layout changes.
-- A real favicon is included, and `/favicon.ico` now resolves successfully instead of returning `404 Not Found`.
-- Frontend cache-busting is updated to Version 6 (`?v=6.0.0`).
+When administrative polygons are available, all Gombe LGAs are rendered as interactive, severity-coloured areas. A tap or click opens a local information card containing:
 
+- AQI and category;
+- PM2.5;
+- PM10;
+- temperature;
+- humidity;
+- wind speed and direction;
+- health recommendation;
+- local update timestamp.
+
+The LGA values are clearly labelled as modelled local estimates derived from the current state-level telemetry. If the external polygon source is unavailable, built-in representative LGA points preserve the tap interaction.
+
+### Mobile map controls
+
+A floating mobile control rail provides:
+
+- zoom in;
+- zoom out;
+- reset to the complete Gombe State boundary;
+- fullscreen map mode.
+
+The mobile map frame is taller so that more of the state and its towns are visible before the user scrolls to the analytical panels.
+
+### Adaptive performance
+
+The browser automatically selects a rendering profile:
+
+- **Desktop:** full visual quality and particle capacity.
+- **Tablet:** reduced canvas resolution, particle density, heat packets and wind streams.
+- **Mobile:** lower device-pixel ratio, approximately one-third of the desktop particle workload, reduced wind/heat complexity and a 25–30 FPS rendering target.
+
+Additional performance measures include:
+
+- animation suspension while the browser tab is hidden;
+- reduced MapLibre pulse frequency on mobile;
+- coarser wind-vector grids on smaller screens;
+- throttled LGA polygon refreshes;
+- disabled map orbit on mobile and tablet;
+- disabled expensive backdrop filters and decorative scanlines on small screens;
+- frontend cache busting using `?v=8.0.0`.
 
 ## Main capabilities
 
-- FastAPI backend with a one-second WebSocket telemetry stream.
-- OpenWeather weather observations for temperature, wind, gusts, humidity, pressure, cloud cover, rainfall and visibility.
-- OpenAQ v3 PM2.5 and PM10 station ingestion.
-- NASA FIRMS VIIRS near-real-time hotspot ingestion.
-- Continuously animated dust, wind, heat-haze and radar layers.
-- PM, wind, humidity and dust-index-driven atmospheric simulation.
-- Live thermal meters, particulate charts and wind/dispersion charts.
-- Health, aviation, visibility, dust-loading and thermal-risk indicators.
-- Live, mixed and demo data modes.
-- Responsive desktop, tablet and mobile layout.
-- Automated tests and Docker support.
-
-## Gombe-only spatial behaviour
-
-The browser retrieves the Gombe boundary from:
-
-```text
-GET /api/boundary
-```
-
-The boundary is then used for five separate controls:
-
-1. A MapLibre polygon mask covers all neighbouring states.
-2. A screen-space SVG mask clips animation canvases to the state shape.
-3. `maxBounds` constrains map panning to Gombe.
-4. Sensor, hotspot, radar and vector coordinates are filtered with point-in-polygon tests.
-5. Only curated Gombe towns and villages are labelled.
-
-The system uses the cached geoBoundaries shape when available and an approximate built-in Gombe polygon when the external boundary service is unavailable.
-
-## Severity-responsive dust model
-
-The frontend calculates a visual severity score from:
-
-- 64% derived dust index;
-- 25% normalised PM10;
-- 11% normalised PM2.5.
-
-The result is constrained to 0–100 and drives the particle system:
-
-```text
-particle count = 90 + 2450 × severity_ratio^1.72
-radiance      = 7  + 93   × severity_ratio^1.32
-```
-
-This gives a deliberately nonlinear response:
-
-- **Low severity:** approximately 90–300 dim points, weak trails and no flash bursts.
-- **Moderate severity:** several hundred points with intermittent compact glints.
-- **High severity:** more than 1,500 brighter points with frequent point flashes.
-- **Extreme severity:** up to approximately 2,540 points with maximum permitted radiance.
-
-Even at extreme severity, point sprites remain small. Town and village labels are rendered on a higher display layer and remain readable.
+- FastAPI backend.
+- One-second WebSocket telemetry stream.
+- OpenWeather weather observations.
+- OpenAQ PM2.5 and PM10 data.
+- NASA FIRMS thermal hotspots.
+- Severity-responsive airborne particles.
+- Animated wind transport and thermal haze.
+- Gombe-only state masking.
+- Smart town and village labels.
+- Operational, health, aviation and thermal indicators.
+- Live, mixed and demo modes.
+- Responsive desktop, tablet and mobile layouts.
 
 ## Project structure
 
 ```text
-harmattan_air_quality_twin/
+gombe_state_air_quality_twin/
 ├── app/
 │   ├── main.py
 │   ├── config.py
@@ -105,6 +102,7 @@ harmattan_air_quality_twin/
 │   │   ├── simulator.py
 │   │   └── weather.py
 │   └── static/
+│       ├── favicon.svg
 │       ├── index.html
 │       ├── css/styles.css
 │       └── js/
@@ -115,21 +113,22 @@ harmattan_air_quality_twin/
 │           └── wind.js
 ├── tests/
 ├── .env.example
+├── Procfile
 ├── Dockerfile
 ├── docker-compose.yml
 ├── requirements.txt
 └── run.py
 ```
 
-## Run locally
-
-Python 3.11 or later is recommended.
+## Run locally on Windows
 
 ```powershell
 cd A:\harmattan_air_quality_twin
+
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
+
 Copy-Item .env.example .env
 python run.py
 ```
@@ -140,11 +139,9 @@ Open:
 http://127.0.0.1:8000
 ```
 
-The application runs in animated demo mode when API keys are blank.
+The platform uses animated demo data when the API keys are blank.
 
-## Enable live data
-
-Edit `.env`:
+## Live-data environment variables
 
 ```dotenv
 OPENWEATHER_API_KEY=your_openweather_key
@@ -159,74 +156,54 @@ BROADCAST_INTERVAL_SECONDS=1
 GOMBE_BBOX=[10.15,9.45,12.35,11.55]
 ```
 
-`GOMBE_BBOX` also accepts this form:
+Keep `.env` out of GitHub.
 
-```dotenv
-GOMBE_BBOX=10.15,9.45,12.35,11.55
-```
+## Render deployment
 
-Restart the application after changing `.env`.
-
-## Browser refresh after upgrading
-
-Stop the old Uvicorn process completely, replace the project folder, copy the existing `.env` into the new folder, and restart:
+Build command:
 
 ```text
-Ctrl+C
+pip install -r requirements.txt
 ```
+
+Start command:
+
+```text
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+The included `Procfile` contains the same production command.
+
+## Updating the existing GitHub repository
+
+After replacing the local project files while preserving `.env`:
 
 ```powershell
-python run.py
+git status
+git add -A
+git commit -m "Add V8 LGA inspector, map legend and mobile performance optimisation"
+git pull origin main --rebase
+git push origin main
 ```
 
-Then close the previous browser tab or perform a hard refresh:
-
-```text
-Ctrl+F5
-```
-
-Version 6 uses `?v=6.0.0` asset URLs and disables frontend caching.
-
-## Controls
-
-- **HOME:** refits the map to the Gombe boundary.
-- **DUST:** toggles the severity-responsive point field and PM heatmap.
-- **WIND:** toggles wind streamlines and moving wind ribbons.
-- **HEAT:** toggles heat haze, hotspot shimmer and thermal layers.
-- **RADAR:** toggles the three Gombe radar stations.
-- **BOOST:** increases visibility while preserving severity scaling.
-- **ORBIT:** enables or disables slow map rotation.
-
-## Tests
-
-Run:
-
-```bash
-python -m pytest -q
-```
-
-The Version 6 test suite checks:
-
-- configuration parsing;
-- simulator and metrics behaviour;
-- weather fields;
-- required dashboard elements;
-- radiant renderers;
-- Gombe-only masks and labels;
-- severity-responsive particle logic;
-- Version 6 cache-busting assets and the favicon route.
+Render will redeploy automatically when automatic deployments are enabled.
 
 ## API endpoints
 
-- `GET /api/health` — service status and connected browser count.
+- `GET /api/health` — application status.
 - `GET /api/snapshot` — latest telemetry frame.
-- `GET /api/boundary` — cached Gombe State GeoJSON.
-- `WS /ws/live` — one-second telemetry stream.
+- `GET /api/boundary` — Gombe State boundary.
+- `GET /api/lgas` — Gombe LGA polygon data or fallback representative points.
+- `WS /ws/live` — live one-second telemetry stream.
 
-## Security
+## Testing
 
-Keep `.env` out of version control. API providers may include keys in request URLs, so do not publish terminal logs containing full API requests. Revoke and regenerate any key that has been exposed.
+```powershell
+python -m pytest -q
+```
 
-## Operational note
+The test suite verifies configuration parsing, simulation, metrics, weather fields, Gombe-only masking, radiant rendering, mobile controls, legend and AQI scale, LGA interaction, adaptive rendering, favicon support and API route declarations.
 
-The risk, heat and aviation indicators are research-oriented decision-support demonstrations. They are not certified medical, environmental or flight-safety products and should not be used as the sole basis for operational decisions.
+## Operational notice
+
+This is a research and visualisation platform. Its health, aviation, thermal and local LGA estimates are not certified operational measurements and should not be used as the sole basis for medical, environmental or flight-safety decisions.
