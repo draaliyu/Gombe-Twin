@@ -1,4 +1,16 @@
-# Gombe Harmattan Dust Storm & Air Quality Digital Twin
+# Gombe Harmattan Dust Storm & Air Quality Digital Twin — Version 7
+
+Version 7 adds a platform-aware responsive interface. Desktop keeps the full command-centre layout, tablets and mobile phones switch to a scrollable app layout where the complete Gombe State map stays visible at the top and every telemetry panel remains accessible below it.
+
+## Version 7 responsive behaviour
+
+- Desktop: left and right command rails, central full Gombe map, bottom chart deck.
+- Tablet: complete Gombe map at the top, horizontal layer controls, all panels stacked below.
+- Mobile: compact app header, Gombe map first, scrollable panels, charts, source integrity and radar cards.
+- Automatic platform detection adds mobile/tablet/desktop classes at runtime.
+- Rotation/orientation changes trigger map resize, boundary refit and smart label recalculation.
+- No panel is hidden on mobile; weather, air quality, risk, wind, heat, data sources, radar and charts remain available.
+
 
 ## Version 6.0 — Clear Gombe map, smart labels and favicon fix
 

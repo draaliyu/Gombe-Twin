@@ -1177,3 +1177,411 @@ h3 { margin: 0; font-size: 12px; }
     }
     .gombe-place-marker.rank-3 .place-label-text { font-size: 5.4px; }
 }
+
+/* ========================================================================== 
+   V7 PLATFORM-AWARE RESPONSIVE LAYOUT
+   Desktop keeps the command-centre rails. Tablet and mobile switch to a
+   scrollable, app-like layout where the complete Gombe map remains at the top
+   and every telemetry interface remains available below it.
+   ========================================================================== */
+.platform-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 8px;
+    border: 1px solid rgba(67, 215, 210, .22);
+    border-radius: 999px;
+    color: var(--cyan-soft);
+    background: rgba(67, 215, 210, .06);
+    font-size: 7px;
+    font-weight: 900;
+    letter-spacing: .12em;
+    white-space: nowrap;
+}
+
+body.platform-mobile .platform-badge::before { content: "MOBILE"; }
+body.platform-tablet .platform-badge::before { content: "TABLET"; }
+body.platform-desktop .platform-badge::before { content: "DESKTOP"; }
+
+@media (max-width: 980px) {
+    html,
+    body {
+        height: auto;
+        min-height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+    }
+
+    .app-shell {
+        --mobile-edge: 10px;
+        --mobile-topbar-height: 74px;
+        --mobile-map-height: min(58svh, 520px);
+        --map-frame-top: calc(var(--mobile-edge) + var(--mobile-topbar-height) + 8px);
+        --map-frame-left: var(--mobile-edge);
+        --map-frame-right: var(--mobile-edge);
+        --map-frame-bottom: auto;
+        width: 100%;
+        height: auto;
+        min-height: 100svh;
+        overflow: visible;
+        padding: var(--mobile-edge) var(--mobile-edge) 22px;
+        background:
+            radial-gradient(circle at 50% 12%, rgba(67, 215, 210, .075), transparent 32%),
+            #061019;
+    }
+
+    .topbar {
+        position: sticky;
+        z-index: 70;
+        top: var(--mobile-edge);
+        left: auto;
+        right: auto;
+        width: 100%;
+        height: var(--mobile-topbar-height);
+        padding: 0 12px;
+        gap: 10px;
+        border-radius: 16px;
+    }
+
+    .brand { gap: 9px; }
+    .brand-mark { width: 38px; height: 38px; border-radius: 11px; }
+    .brand .eyebrow { display: none; }
+    h1 { font-size: clamp(14px, 3.6vw, 18px); line-height: 1.1; }
+    .status-strip { gap: 8px; margin-left: auto; }
+    .clock-item,
+    .compact-status { display: none !important; }
+    .mode-badge { padding: 5px 8px; font-size: 7px; }
+
+    #map,
+    #wind-canvas,
+    #heat-canvas,
+    #dust-canvas,
+    #state-mask-overlay,
+    #place-label-layer,
+    .atmosphere-layer,
+    .scanline-layer,
+    .vignette-layer {
+        position: absolute !important;
+        top: var(--map-frame-top) !important;
+        right: var(--map-frame-right) !important;
+        bottom: auto !important;
+        left: var(--map-frame-left) !important;
+        width: auto !important;
+        height: var(--mobile-map-height) !important;
+        border-radius: 18px;
+    }
+
+    #map {
+        min-height: 360px;
+        box-shadow:
+            0 18px 44px rgba(0, 0, 0, .48),
+            0 0 0 1px rgba(145, 247, 236, .14),
+            inset 0 0 42px rgba(0, 0, 0, .22);
+    }
+
+    #state-mask-overlay,
+    #place-label-layer {
+        min-height: 360px;
+    }
+
+    .live-motion-hud {
+        position: absolute;
+        z-index: 62;
+        top: calc(var(--map-frame-top) + 8px);
+        right: calc(var(--mobile-edge) + 8px);
+        left: calc(var(--mobile-edge) + 8px);
+        width: auto;
+        min-width: 0;
+        max-width: none;
+        transform: none;
+        pointer-events: none;
+    }
+
+    .motion-stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .motion-stats span {
+        justify-content: center;
+        min-width: 0;
+    }
+
+    .map-controls {
+        position: absolute;
+        z-index: 65;
+        top: calc(var(--map-frame-top) + var(--mobile-map-height) + 10px);
+        right: var(--mobile-edge);
+        bottom: auto;
+        left: var(--mobile-edge);
+        width: auto;
+        max-width: none;
+        justify-content: flex-start;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 5px;
+        transform: none;
+        scrollbar-width: thin;
+    }
+
+    .map-controls button {
+        flex: 0 0 64px;
+        width: 64px;
+        height: 42px;
+    }
+
+    .map-legend {
+        display: none !important;
+    }
+
+    .map-title-overlay,
+    .map-heat-hud {
+        display: none !important;
+    }
+
+    .panel-stack {
+        position: relative;
+        z-index: 30;
+        top: auto;
+        right: auto;
+        bottom: auto;
+        left: auto;
+        width: 100%;
+        max-height: none;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        pointer-events: auto;
+    }
+
+    .left-stack {
+        margin-top: calc(var(--mobile-map-height) + var(--mobile-topbar-height) + 76px);
+    }
+
+    .right-stack {
+        margin-top: 10px;
+    }
+
+    .source-panel,
+    .radar-panel,
+    .hotspot-summary {
+        display: block !important;
+    }
+
+    .metric-panel,
+    .weather-panel,
+    .risk-panel,
+    .flow-panel,
+    .thermal-panel,
+    .source-panel,
+    .radar-panel {
+        border-radius: 16px;
+        padding: 13px;
+    }
+
+    .bottom-deck {
+        position: relative;
+        z-index: 30;
+        left: auto;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        height: auto;
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 10px;
+        overflow: visible;
+        border-radius: 16px;
+    }
+
+    .chart-card,
+    .hotspot-summary {
+        min-height: 156px;
+        border-right: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, .07);
+    }
+
+    .chart-card:last-child,
+    .hotspot-summary:last-child {
+        border-bottom: 0;
+    }
+
+    .chart-card canvas {
+        height: 112px;
+    }
+
+    .gauge-grid,
+    .primary-metrics,
+    .weather-grid,
+    .flow-stats,
+    .thermal-readouts,
+    .thermal-meter-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .radar-list {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .radar-list article {
+        grid-template-columns: 31px 1fr;
+        border: 1px solid rgba(255, 255, 255, .06);
+        border-radius: 10px;
+        padding: 8px;
+    }
+
+    .radar-list em {
+        grid-column: 1 / -1;
+    }
+
+    .maplibregl-ctrl-bottom-left {
+        bottom: 8px !important;
+        left: 8px !important;
+    }
+
+    #toast {
+        position: fixed;
+        top: auto;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        max-width: none;
+        transform: translateY(8px);
+    }
+
+    #toast.show {
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .app-shell {
+        --mobile-edge: 8px;
+        --mobile-topbar-height: 66px;
+        --mobile-map-height: 54svh;
+    }
+
+    .topbar {
+        padding: 0 9px;
+        border-radius: 14px;
+    }
+
+    .brand-mark {
+        width: 34px;
+        height: 34px;
+    }
+
+    .status-strip .status-item:not(:first-child),
+    .mode-badge {
+        display: none !important;
+    }
+
+    .live-motion-hud {
+        grid-template-columns: 26px 1fr;
+        padding: 6px 8px;
+    }
+
+    .motion-beacon {
+        width: 25px;
+        height: 25px;
+    }
+
+    .motion-stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+    }
+
+    .motion-stats span:nth-child(3),
+    .motion-stats span:nth-child(4) {
+        display: inline-flex !important;
+    }
+
+    .map-controls button {
+        flex-basis: 58px;
+        width: 58px;
+        height: 40px;
+    }
+
+    .map-controls button span { font-size: 15px; }
+    .map-controls button small { font-size: 5px; }
+
+    .left-stack {
+        margin-top: calc(var(--mobile-map-height) + var(--mobile-topbar-height) + 72px);
+    }
+
+    .primary-metrics,
+    .weather-hero,
+    .weather-grid,
+    .gauge-grid,
+    .flow-stats,
+    .thermal-readouts,
+    .thermal-meter-grid,
+    .source-row,
+    .radar-list {
+        grid-template-columns: 1fr;
+    }
+
+    .weather-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .metric-card {
+        min-height: 88px;
+    }
+
+    .gauge-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .gauge {
+        width: 58px;
+        height: 58px;
+    }
+
+    .radar-list {
+        display: grid;
+        grid-template-columns: 1fr;
+    }
+
+    .place-label-text {
+        font-size: 5.6px;
+        padding: 2.5px 5px;
+    }
+
+    .gombe-place-marker.capital .place-label-text {
+        font-size: 7px;
+    }
+}
+
+@media (max-width: 420px) {
+    .weather-grid,
+    .gauge-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .panel-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .live-pill,
+    .observation-age,
+    .risk-level,
+    .flow-state,
+    .radar-count {
+        align-self: flex-start;
+    }
+
+    .chart-heading,
+    .client-row,
+    .meter-head {
+        gap: 6px;
+    }
+}

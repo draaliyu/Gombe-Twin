@@ -43,7 +43,7 @@ def test_high_visibility_motion_features_are_loaded() -> None:
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
     wind_js = (STATIC_ROOT / "js" / "wind.js").read_text(encoding="utf-8")
 
-    assert "?v=6.0.0" in html
+    assert "?v=7.0.0" in html
     assert "V6 CLEAR-MAP LAYOUT + SMART TOWN LABELS" in css
     assert "updateAnimationHud" in app_js
     assert "toggle-boost" in app_js
@@ -79,7 +79,7 @@ def test_clear_map_layout_and_smart_labels_are_loaded() -> None:
     css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
 
-    assert 'href="/static/favicon.svg?v=6.0.0"' in html
+    assert 'href="/static/favicon.svg?v=7.0.0"' in html
     assert "--map-frame-left" in css
     assert ".gombe-place-marker" in css
     assert ".place-leader" in css
