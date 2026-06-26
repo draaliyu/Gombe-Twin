@@ -43,7 +43,7 @@ def test_high_visibility_motion_features_are_loaded() -> None:
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
     wind_js = (STATIC_ROOT / "js" / "wind.js").read_text(encoding="utf-8")
 
-    assert "?v=8.0.0" in html
+    assert "?v=8.1.0" in html
     assert "V6 CLEAR-MAP LAYOUT + SMART TOWN LABELS" in css
     assert "updateAnimationHud" in app_js
     assert "toggle-boost" in app_js
@@ -79,7 +79,7 @@ def test_clear_map_layout_and_smart_labels_are_loaded() -> None:
     css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
 
-    assert 'href="/static/favicon.svg?v=8.0.0"' in html
+    assert 'href="/static/favicon.svg?v=8.1.0"' in html
     assert "--map-frame-left" in css
     assert ".gombe-place-marker" in css
     assert ".place-leader" in css
@@ -130,3 +130,12 @@ def test_lga_endpoint_and_geography_loader_are_declared() -> None:
     assert "fetch_gombe_lgas" in main_py
     assert "FALLBACK_GOMBE_LGAS" in boundary_py
     assert "ADM2" in boundary_py
+
+
+def test_v81_map_legend_is_readable() -> None:
+    css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
+    assert "V8.1 READABLE MAP LEGEND" in css
+    assert "font-size: clamp(10.5px, .72vw, 12px)" in css
+    assert "font-size: 11px" in css
+    assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in css
+    assert "overflow-y: auto" in css

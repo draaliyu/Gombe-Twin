@@ -1,4 +1,8 @@
-# Gombe State Air Quality Visualisation Twin — Version 8
+# Gombe State Air Quality Visualisation Twin — Version 8.1
+
+## Version 8.1: readable map legend
+
+The map legend has been enlarged for desktop, tablet and mobile use. Legend labels now use higher-contrast 10.5–13 px typography, larger symbols, a thicker AQI colour bar and readable AQI categories. On mobile, AQI categories use a two-column layout and the expanded legend can scroll if the available map height is limited.
 
 A responsive FastAPI and MapLibre environmental visualisation platform for Gombe State. The application streams weather, particulate, thermal-hotspot and modelled atmospheric-flow information through WebSockets and adapts its rendering load to desktop, tablet and mobile devices.
 
@@ -69,7 +73,7 @@ Additional performance measures include:
 - throttled LGA polygon refreshes;
 - disabled map orbit on mobile and tablet;
 - disabled expensive backdrop filters and decorative scanlines on small screens;
-- frontend cache busting using `?v=8.0.0`.
+- frontend cache busting using `?v=8.1.0`.
 
 ## Main capabilities
 

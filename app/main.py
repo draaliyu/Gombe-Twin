@@ -90,7 +90,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="Gombe State Air Quality Visualisation Twin",
-    version="8.0.0",
+    version="8.1.0",
     lifespan=lifespan,
 )
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

@@ -1,7 +1,7 @@
-import { DustParticleField } from "./dust.js?v=8.0.0";
-import { WindFlowField } from "./wind.js?v=8.0.0";
-import { HeatHazeField } from "./heat.js?v=8.0.0";
-import { LiveCharts } from "./charts.js?v=8.0.0";
+import { DustParticleField } from "./dust.js?v=8.1.0";
+import { WindFlowField } from "./wind.js?v=8.1.0";
+import { HeatHazeField } from "./heat.js?v=8.1.0";
+import { LiveCharts } from "./charts.js?v=8.1.0";
 
 const GOMBE_VIEW = { center: [11.24, 10.43], zoom: 7.72, pitch: 0, bearing: 0 };
 const FALLBACK_GOMBE_BOUNDS = { west: 10.30, south: 9.48, east: 12.24, north: 11.49 };
