@@ -17,15 +17,26 @@ class SourceStatus(BaseModel):
 
 class WeatherReading(BaseModel):
     temperature_c: float = 31.0
+    feels_like_c: float = 31.0
+    temperature_min_c: float = 31.0
+    temperature_max_c: float = 31.0
     humidity_pct: float = 25.0
     pressure_hpa: float = 1008.0
     wind_speed_ms: float = 7.0
     wind_direction_deg: float = 52.0
     wind_gust_ms: float = 10.0
+    wind_gust_reported: bool = False
     visibility_m: float = 6000.0
+    visibility_reported: bool = False
     cloud_cover_pct: float = 18.0
     precipitation_mm_1h: float = 0.0
     condition: str = "Dust haze"
+    condition_group: str = "Haze"
+    weather_code: int = 721
+    icon_code: str = "50d"
+    sunrise_at: datetime | None = None
+    sunset_at: datetime | None = None
+    timezone_offset_seconds: int = 3600
     observed_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 

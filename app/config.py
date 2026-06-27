@@ -37,11 +37,18 @@ class Settings(BaseSettings):
     openweather_api_key: str = ""
     openaq_api_key: str = ""
     nasa_firms_map_key: str = ""
+    admin_password: str = ""
+    admin_password_sha256: str = ""
 
     weather_refresh_seconds: int = Field(default=180, ge=30)
     air_quality_refresh_seconds: int = Field(default=300, ge=60)
     firms_refresh_seconds: int = Field(default=600, ge=120)
     broadcast_interval_seconds: float = Field(default=1.0, ge=0.25, le=10.0)
+    forecast_refresh_seconds: int = Field(default=1800, ge=300)
+    history_sample_seconds: int = Field(default=300, ge=60)
+    history_retention_days: int = Field(default=90, ge=1, le=3650)
+    model_min_samples: int = Field(default=24, ge=12, le=10000)
+    data_dir: str = "data"
 
     gombe_lat: float = 10.2897
     gombe_lon: float = 11.1673

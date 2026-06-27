@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#061019">
+    <meta name="description" content="Evidence-based explanations of heat, wind and particulate conditions across Gombe State.">
+    <title>Evidence Lab · Gombe State Air Quality Visualisation Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=10.1.0">
+    <link rel="stylesheet" href="/static/css/portal.css?v=10.1.0">
+</head>
+<body class="portal-body">
+<header class="portal-header"><div class="portal-header-inner">
+    <a class="portal-brand" href="/"><span class="portal-brand-mark"></span><span><small>GOMBE ENVIRONMENTAL SERVICES</small><strong>Air Quality Visualisation Twin</strong></span></a>
+    <div class="portal-live"><i></i><span id="portal-stream">CONNECTING</span></div>
+    <nav class="service-navigation" aria-label="Digital twin services"><a href="/"><b>◉</b>Live Twin</a><a href="/explore"><b>⌖</b>Regional Explorer</a><a href="/weather"><b>≋</b>Weather Dynamics</a><a href="/heat"><b>♨</b>Heat Intelligence</a><a href="/learn"><b>?</b>Evidence Lab</a><a href="/predictions"><b>⌁</b>AI Forecast</a></nav>
+</div></header>
+<main class="portal-main">
+    <section class="page-hero"><div><p class="eyebrow">EDUCATIONAL EVIDENCE SERVICE</p><h1>Understand what the data can—and cannot—say</h1><p>Select an LGA and explore the actual observations, derived transport direction, spatial-estimation method and limitations behind the map. Explanations are generated from the current API frame, not from invented regional values.</p></div><div class="hero-status"><small>LIVE FRAME</small><strong id="evidence-frame">Awaiting telemetry</strong></div></section>
+    <section class="evidence-layout">
+        <aside class="portal-panel panel-pad">
+            <div class="panel-header"><div><small>LOCATION</small><h2>Choose an LGA</h2></div></div>
+            <select id="evidence-region" class="form-control"><option value="">Choose an LGA</option></select>
+            <div class="topic-cards" style="margin-top:14px">
+                <article class="topic-card active" data-topic="particles"><small>PARTICLES</small><strong>Why are PM levels elevated?</strong><p>Checks measured PM values, the coarse/fine ratio, moisture, rain and wind without claiming a source that the APIs cannot verify.</p></article>
+                <article class="topic-card" data-topic="wind"><small>WIND</small><strong>Where is the air moving?</strong><p>Separates the reported wind-from direction from the calculated downwind transport direction.</p></article>
+                <article class="topic-card" data-topic="heat"><small>HEAT</small><strong>Why does the thermal layer change?</strong><p>Uses ambient temperature, humidity and nearby FIRMS detections while keeping fire radiative power distinct from air temperature.</p></article>
+            </div>
+        </aside>
+        <section style="display:grid;gap:16px">
+            <article class="portal-panel panel-pad">
+                <div class="panel-header"><div><small id="evidence-topic-label">PARTICLES</small><h2 id="evidence-title">Select an LGA to begin</h2></div><span class="panel-chip" id="evidence-confidence">NO DATA</span></div>
+                <div class="notice provenance-notice" id="evidence-provenance">Source provenance will appear after a location is selected.</div>
+                <div class="metric-grid">
+                    <article class="metric-tile"><small>AQI</small><strong id="evidence-aqi">--</strong><span id="evidence-category">--</span></article>
+                    <article class="metric-tile"><small>PM2.5</small><strong id="evidence-pm25">--</strong><span>µg/m³</span></article>
+                    <article class="metric-tile"><small>PM10</small><strong id="evidence-pm10">--</strong><span>µg/m³</span></article>
+                    <article class="metric-tile"><small>LOCAL METHOD</small><strong id="evidence-method-short" style="font-size:14px">--</strong><span id="evidence-nearest">--</span></article>
+                </div>
+                <div class="evidence-list" id="evidence-details" style="margin-top:14px"><div class="notice">The evidence cards will update after a location is selected.</div></div>
+            </article>
+            <article class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>HEALTH INTERPRETATION</small><h2>Current guidance</h2></div></div>
+                <div class="notice" id="evidence-health">No location selected.</div>
+            </article>
+            <article class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>LIMITATIONS</small><h2>What this service does not assume</h2></div></div>
+                <ul class="caveat-list" id="evidence-caveats"><li>No regional explanation is loaded yet.</li></ul>
+            </article>
+        </section>
+    </section>
+</main>
+<footer class="portal-footer">Educational explanations are deterministic and source-labelled. They describe the evidence in the live frame and explicitly flag spatial estimates and unsupported source attribution.</footer>
+<script type="module" src="/static/js/learn.js?v=10.1.0"></script>
+</body>
+</html>

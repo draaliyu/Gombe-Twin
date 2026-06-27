@@ -14,6 +14,7 @@ export class WindFlowField {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
         this.enabled = true;
+        this.paused = false;
         this.boosted = true;
         this.windSpeed = 7;
         this.windDirection = 52;
@@ -70,6 +71,14 @@ export class WindFlowField {
         this.baseTargetCount = Math.round(110 + Math.min(140, this.windSpeed * 9));
         this.targetCount = Math.max(36, Math.round(this.baseTargetCount * this.qualityScale));
         this.reconcileCount();
+    }
+
+    setPaused(paused) {
+        this.paused = Boolean(paused);
+        if (this.paused) {
+            this.lastTime = performance.now();
+            this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        }
     }
 
     setEnabled(enabled) {
@@ -264,7 +273,7 @@ export class WindFlowField {
     }
 
     animate(now) {
-        if (document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
+        if (this.paused || document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
             if (document.hidden) this.lastTime = now;
             requestAnimationFrame(this.animate);
             return;

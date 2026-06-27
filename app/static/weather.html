@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#061019">
+    <meta name="description" content="Live weather, precipitation, sky circulation, wind and forecast interpretation for Gombe State.">
+    <title>Weather Dynamics · Gombe State Air Quality Visualisation Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=10.1.0">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="/static/css/portal.css?v=10.1.0">
+</head>
+<body class="portal-body weather-service-page">
+<header class="portal-header"><div class="portal-header-inner">
+    <a class="portal-brand" href="/"><span class="portal-brand-mark"></span><span><small>GOMBE ENVIRONMENTAL SERVICES</small><strong>Air Quality Visualisation Twin</strong></span></a>
+    <div class="portal-live"><i></i><span id="portal-stream">CONNECTING</span></div>
+    <nav class="service-navigation" aria-label="Digital twin services"><a href="/"><b>◉</b>Live Twin</a><a href="/explore"><b>⌖</b>Regional Explorer</a><a href="/weather"><b>≋</b>Weather Dynamics</a><a href="/heat"><b>♨</b>Heat Intelligence</a><a href="/learn"><b>?</b>Evidence Lab</a><a href="/predictions"><b>⌁</b>AI Forecast</a></nav>
+</div></header>
+<main class="portal-main">
+    <section class="page-hero"><div><p class="eyebrow">LIVE WEATHER INTERPRETATION SERVICE</p><h1>See the sky, rain and air circulation evolve</h1><p>Current motion is driven by the live weather frame. Provider precipitation, cloud, wind, pressure and temperature layers remain clearly distinguished from the modelled animation.</p></div><div class="hero-status"><small>LAST LIVE FRAME</small><strong id="weather-updated">Awaiting data</strong></div></section>
+
+    <section class="portal-panel weather-stage" id="weather-stage">
+        <canvas id="weather-sky-canvas" class="weather-sky-canvas" aria-hidden="true"></canvas>
+        <div class="weather-stage-shade"></div>
+        <div class="weather-stage-content">
+            <div class="weather-stage-topline"><span class="panel-chip" id="weather-visual-mode">LIVE API VISUAL</span><span id="weather-visual-caption">Waiting for the first weather frame</span></div>
+            <div class="weather-big"><strong><span id="weather-temperature">--</span>°</strong><div><span id="weather-condition">Connecting…</span><small>Gombe reference coordinate · <b id="weather-source">Source pending</b></small></div></div>
+            <div class="wind-hero"><i class="wind-needle" id="weather-wind-needle"></i><strong id="weather-wind-speed">--</strong><small id="weather-wind-bearing">m/s · --</small></div>
+        </div>
+        <div class="weather-live-badges"><span><i class="badge-cloud"></i><b id="stage-cloud">--%</b> cloud</span><span><i class="badge-rain"></i><b id="stage-rain">--</b> rain</span><span><i class="badge-flow"></i><b id="stage-flow">--</b> transport</span></div>
+    </section>
+
+    <section class="metric-grid weather-metrics" style="margin-top:14px">
+        <article class="metric-tile"><small>HUMIDITY</small><strong id="weather-humidity">--%</strong><span>Reference-coordinate observation</span></article>
+        <article class="metric-tile"><small>FEELS LIKE</small><strong id="weather-feels-like">--°C</strong><span>Provider-derived comfort field</span></article>
+        <article class="metric-tile"><small>WIND GUST</small><strong id="weather-gust">-- m/s</strong><span id="weather-gust-note">Awaiting</span></article>
+        <article class="metric-tile"><small>PRESSURE</small><strong id="weather-pressure">-- hPa</strong><span>Surface pressure</span></article>
+        <article class="metric-tile"><small>VISIBILITY</small><strong id="weather-visibility">-- km</strong><span id="weather-visibility-note">Provider-reported visibility</span></article>
+        <article class="metric-tile"><small>CLOUD COVER</small><strong id="weather-cloud">--%</strong><span>Current provider field</span></article>
+        <article class="metric-tile"><small>RAIN · 1 HOUR</small><strong id="weather-rain">-- mm</strong><span>Current provider field</span></article>
+        <article class="metric-tile"><small>TRANSPORT TOWARD</small><strong id="weather-transport">--</strong><span>Opposite of wind-from bearing</span></article>
+        <article class="metric-tile"><small>OBSERVATION AGE</small><strong id="weather-age">--</strong><span>Age of provider observation</span></article>
+        <article class="metric-tile"><small>DAYLIGHT</small><strong id="weather-daylight">--</strong><span id="weather-daylight-note">Provider sunrise/sunset</span></article>
+    </section>
+
+    <section class="weather-map-layout">
+        <article class="portal-panel weather-map-panel">
+            <div class="weather-map-header">
+                <div><small>PROVIDER MAP + MODELLED FLOW</small><h2>Live precipitation and sky circulation</h2></div>
+                <span class="panel-chip" id="weather-layer-status">CHECKING LAYERS</span>
+            </div>
+            <div class="weather-layer-controls" role="group" aria-label="Weather map layer">
+                <button class="active" data-weather-layer="precipitation">Rain</button>
+                <button data-weather-layer="clouds">Clouds</button>
+                <button data-weather-layer="wind">Wind</button>
+                <button data-weather-layer="pressure">Pressure</button>
+                <button data-weather-layer="temperature">Temperature</button>
+                <button id="weather-layer-none" data-weather-layer="none">Flow only</button>
+            </div>
+            <div class="weather-map-frame" id="weather-map-frame">
+                <div id="weather-radar-map" aria-label="Gombe State live weather map"></div>
+                <canvas id="weather-map-flow" class="weather-map-flow" aria-hidden="true"></canvas>
+                <div class="weather-map-controls">
+                    <button id="weather-map-zoom-in" aria-label="Zoom in">＋</button>
+                    <button id="weather-map-zoom-out" aria-label="Zoom out">−</button>
+                    <button id="weather-map-reset" aria-label="Reset Gombe State view">⌂</button>
+                    <button id="weather-map-fullscreen" aria-label="Toggle fullscreen">⛶</button>
+                </div>
+                <div class="weather-map-key">
+                    <span><i class="key-provider"></i>Provider weather tile</span>
+                    <span><i class="key-flow"></i>Modelled wind flow</span>
+                    <span><i class="key-rain"></i>Animated rain cells</span>
+                </div>
+                <div class="weather-map-time"><b id="weather-map-time">Awaiting live frame</b><span id="weather-map-layer-name">Precipitation</span></div>
+            </div>
+            <p class="source-note" id="weather-map-note">The moving streamlines are generated from the reported wind vector. They are not direct Doppler-radar measurements.</p>
+        </article>
+
+        <aside class="weather-insight-column">
+            <section class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>WHAT THE API SUPPORTS</small><h2>Current interpretation</h2></div><span class="panel-chip" id="weather-insight-mode">LOADING</span></div>
+                <div class="evidence-list compact-evidence-list" id="weather-current-insights"><div class="notice">Waiting for source-labelled weather interpretation.</div></div>
+            </section>
+            <section class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>AIR QUALITY CONTEXT</small><h2>Weather–particle relationship</h2></div></div>
+                <div class="evidence-list compact-evidence-list" id="weather-air-context"><div class="notice">Waiting for current weather and particulate data.</div></div>
+            </section>
+        </aside>
+    </section>
+
+    <section class="portal-panel panel-pad" style="margin-top:16px">
+        <div class="panel-header"><div><small>PROVIDER FORECAST</small><h2>Next conditions</h2></div><span class="panel-chip" id="forecast-source">LOADING</span></div>
+        <div class="forecast-strip" id="weather-forecast"><div class="forecast-card loading-shimmer"><span>Loading provider forecast…</span></div></div>
+        <p class="source-note" id="forecast-note" style="margin:12px 0 0">Forecast values are not presented as observations.</p>
+    </section>
+
+    <section class="portal-panel panel-pad weather-forecast-evidence" style="margin-top:16px">
+        <div class="panel-header"><div><small>FORECAST INTERPRETATION</small><h2>What is expected to change</h2></div></div>
+        <div class="evidence-grid" id="weather-forecast-insights"><div class="notice">Waiting for provider forecast interpretation.</div></div>
+        <div class="notice weather-visual-notice" id="weather-visual-notice">Animated weather interpretation notice will appear here.</div>
+    </section>
+</main>
+<footer class="portal-footer">Wind direction follows the meteorological convention: it reports where the wind comes from. Transport direction is the opposite bearing. Animated sky and flow layers are source-labelled interpretations, not direct video.</footer>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script type="module" src="/static/js/weather-page.js?v=10.1.0"></script>
+</body>
+</html>

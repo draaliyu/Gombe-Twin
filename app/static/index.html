@@ -2,89 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#061019">
     <meta name="description" content="Live Gombe State air-quality visualisation twin">
     <title>Gombe State Air Quality Visualisation Twin</title>
-    <title>Gombe State Air Quality Visualisation Twin</title>
-
-    <meta
-        name="description"
-        content="A live digital twin for visualising air quality, particulate matter, weather, wind movement and environmental conditions across Gombe State, Nigeria."
-    >
-    
-    <link
-        rel="canonical"
-        href="https://gombe-twin.onrender.com/"
-    >
-    
-    <meta property="og:type" content="website">
-    
-    <meta
-        property="og:title"
-        content="Gombe State Air Quality Visualisation Twin"
-    >
-    
-    <meta
-        property="og:description"
-        content="Explore live PM2.5, PM10, AQI, weather, wind, thermal activity and environmental conditions across Gombe State."
-    >
-    
-    <meta
-        property="og:url"
-        content="https://gombe-twin.onrender.com/"
-    >
-    
-    <meta
-        property="og:site_name"
-        content="Gombe State Air Quality Visualisation Twin"
-    >
-    
-    <meta
-        property="og:image"
-        content="https://gombe-twin.onrender.com/static/social-preview.jpg?v=1"
-    >
-    
-    <meta
-        property="og:image:secure_url"
-        content="https://gombe-twin.onrender.com/static/social-preview.jpg?v=1"
-    >
-    
-    <meta property="og:image:type" content="image/jpeg">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    
-    <meta
-        property="og:image:alt"
-        content="Live Gombe State air-quality digital twin showing particulate matter, weather and wind visualisation"
-    >
-    
-    <meta property="og:locale" content="en_GB">
-    
-    <meta name="twitter:card" content="summary_large_image">
-    
-    <meta
-        name="twitter:title"
-        content="Gombe State Air Quality Visualisation Twin"
-    >
-    
-    <meta
-        name="twitter:description"
-        content="Live air-quality, weather and environmental visualisation across Gombe State."
-    >
-    
-    <meta
-        name="twitter:image"
-        content="https://gombe-twin.onrender.com/static/social-preview.jpg?v=1"
-    >
-    
-    
-    
-    
-    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=8.1.0">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=10.1.0">
     <link rel="preconnect" href="https://unpkg.com">
     <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
-    <link rel="stylesheet" href="/static/css/styles.css?v=8.1.0">
+    <link rel="stylesheet" href="/static/css/styles.css?v=10.1.0">
 </head>
 <body>
     <main class="app-shell">
@@ -132,12 +57,20 @@
                 <span class="platform-badge" id="platform-badge" title="Responsive platform mode"></span>
             </section>
         </header>
+        <nav class="live-service-nav glass-panel" aria-label="Digital twin services">
+            <a class="active" href="/"><b>◉</b><span>Live Twin</span></a>
+            <a href="/explore"><b>⌖</b><span>Regional Explorer</span></a>
+            <a href="/weather"><b>≋</b><span>Weather Dynamics</span></a>
+            <a href="/heat"><b>♨</b><span>Heat Intelligence</span></a>
+            <a href="/learn"><b>?</b><span>Evidence Lab</span></a>
+            <a href="/predictions"><b>⌁</b><span>AI Forecast</span></a>
+        </nav>
 
-        <aside class="left-stack panel-stack">
+        <aside class="left-stack panel-stack" id="dashboard-panels">
             <section class="glass-panel metric-panel">
                 <div class="panel-heading">
                     <div><p class="eyebrow">ATMOSPHERIC TELEMETRY</p><h2>Air Quality Now</h2></div>
-                    <span class="live-pill"><i></i> UPDATES EACH SECOND</span>
+                    <span class="live-pill"><i></i> LIVE FRAME EACH SECOND</span>
                 </div>
 
                 <div class="primary-metrics">
@@ -370,6 +303,8 @@
             <button type="button" id="mobile-reset-view" aria-label="Reset Gombe State view" title="Reset map">⌂</button>
             <button type="button" id="mobile-fullscreen" aria-label="Toggle fullscreen map" title="Fullscreen">⛶</button>
         </nav>
+        <div class="mobile-scroll-assist" aria-hidden="true">One finger scrolls the page · use two fingers on the map</div>
+        <a class="mobile-dashboard-jump" href="#dashboard-panels">↓ Open live dashboard</a>
 
         <section class="lga-info-card glass-panel" id="lga-info-card" aria-live="polite" aria-hidden="true">
             <div class="lga-card-heading">
@@ -378,7 +313,7 @@
             </div>
             <div class="lga-aqi-summary">
                 <div class="lga-aqi-orb" id="lga-aqi-orb"><strong id="lga-aqi">--</strong><small>AQI</small></div>
-                <div><b id="lga-aqi-category">Tap an outlined LGA</b><span>Modelled local estimate from the live state telemetry</span></div>
+                <div><b id="lga-aqi-category">Tap an outlined LGA for a source-labelled estimate</b><span>Measured where available; otherwise nearest-station spatial estimate</span></div>
             </div>
             <div class="lga-metric-grid">
                 <article><small>PM2.5</small><strong><b id="lga-pm25">--</b> µg/m³</strong></article>
@@ -430,6 +365,6 @@
     </main>
 
     <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
-    <script type="module" src="/static/js/app.js?v=8.1.0"></script>
+    <script type="module" src="/static/js/app.js?v=10.1.0"></script>
 </body>
 </html>

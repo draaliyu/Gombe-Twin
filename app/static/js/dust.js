@@ -73,6 +73,7 @@ export class DustParticleField {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
         this.enabled = true;
+        this.paused = false;
         this.boosted = true;
         this.particles = [];
         this.heroSparkles = [];
@@ -224,6 +225,14 @@ export class DustParticleField {
         const severityRatio = this.severity / 100;
         this.radiance = clamp(7 + 93 * Math.pow(severityRatio, 1.32), 7, 100);
         this.recalculateTargets();
+    }
+
+    setPaused(paused) {
+        this.paused = Boolean(paused);
+        if (this.paused) {
+            this.lastTime = performance.now();
+            this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
+        }
     }
 
     setEnabled(enabled) {
@@ -464,7 +473,7 @@ export class DustParticleField {
     }
 
     animate(now) {
-        if (document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
+        if (this.paused || document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
             if (document.hidden) this.lastTime = now;
             requestAnimationFrame(this.animate);
             return;

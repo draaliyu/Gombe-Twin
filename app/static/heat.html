@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#130b0a">
+    <meta name="description" content="Live ambient heat and NASA FIRMS thermal-anomaly intelligence for Gombe State.">
+    <title>Heat Intelligence · Gombe State Air Quality Visualisation Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=10.1.0">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="/static/css/portal.css?v=10.1.0">
+</head>
+<body class="portal-body heat-service-page">
+<header class="portal-header">
+    <div class="portal-header-inner">
+        <a class="portal-brand" href="/">
+            <span class="portal-brand-mark" aria-hidden="true"></span>
+            <span><small>GOMBE ENVIRONMENTAL SERVICES</small><strong>Air Quality Visualisation Twin</strong></span>
+        </a>
+        <div class="portal-live"><i></i><span id="portal-stream">CONNECTING</span></div>
+        <nav class="service-navigation" aria-label="Digital twin services">
+            <a href="/"><b>◉</b>Live Twin</a><a href="/explore"><b>⌖</b>Regional Explorer</a><a href="/weather"><b>≋</b>Weather Dynamics</a><a href="/heat"><b>♨</b>Heat Intelligence</a><a href="/learn"><b>?</b>Evidence Lab</a><a href="/predictions"><b>⌁</b>AI Forecast</a>
+        </nav>
+    </div>
+</header>
+<main class="portal-main">
+    <section class="page-hero heat-page-hero">
+        <div>
+            <p class="eyebrow">AMBIENT HEAT + SATELLITE THERMAL EVIDENCE</p>
+            <h1>Heat & hotspot intelligence</h1>
+            <p>See ambient weather heat separately from NASA FIRMS satellite thermal detections. Select an LGA to understand what is directly observed, what is calculated, and what the current pattern could mean without treating a hotspot as local air temperature.</p>
+        </div>
+        <div class="hero-status"><small>GOMBE LOCAL TIME</small><strong id="portal-clock">--:--:-- UTC+1</strong></div>
+    </section>
+
+    <section class="heat-stage portal-panel" id="heat-stage">
+        <canvas id="heat-sky-canvas" class="heat-sky-canvas" aria-hidden="true"></canvas>
+        <div class="heat-stage-shade"></div>
+        <div class="heat-stage-content">
+            <div class="heat-stage-topline">
+                <span class="panel-chip" id="heat-data-mode">AWAITING LIVE FRAME</span>
+                <span id="heat-stage-source">Weather and FIRMS source labels will appear here.</span>
+            </div>
+            <div class="heat-stage-primary">
+                <div>
+                    <small>AMBIENT TEMPERATURE</small>
+                    <strong><span id="heat-temperature">--</span>°C</strong>
+                    <p id="heat-condition">Connecting to current weather…</p>
+                </div>
+                <div class="heat-apparent-orb" id="heat-apparent-orb">
+                    <small>APPARENT SCREEN</small>
+                    <strong id="heat-apparent">--°C</strong>
+                    <span id="heat-band">Awaiting</span>
+                </div>
+            </div>
+            <div class="heat-stage-metrics">
+                <article><small>HUMIDITY</small><strong id="heat-humidity">--%</strong></article>
+                <article><small>WIND</small><strong id="heat-wind">-- m/s</strong></article>
+                <article><small>HOTSPOTS</small><strong id="heat-hotspots">--</strong></article>
+                <article><small>PEAK FRP</small><strong id="heat-peak-frp">-- MW</strong></article>
+                <article><small>LIVE UPDATE</small><strong id="heat-updated">--</strong></article>
+            </div>
+        </div>
+    </section>
+
+    <section class="heat-map-layout">
+        <article class="portal-panel heat-map-panel">
+            <div class="heat-map-header">
+                <div><small>GOMBE STATE THERMAL VIEW</small><h2>Where heat attention is highest</h2></div>
+                <span class="panel-chip" id="heat-map-status">LOADING</span>
+            </div>
+            <div class="heat-mode-controls" role="group" aria-label="Heat-map mode">
+                <button class="active" data-heat-mode="ambient">Ambient heat</button>
+                <button data-heat-mode="thermal">FIRMS anomalies</button>
+                <button data-heat-mode="combined">Combined attention</button>
+            </div>
+            <div class="heat-map-frame" id="heat-map-frame">
+                <div id="heat-map" aria-label="Interactive Gombe State heat and hotspot map"></div>
+                <canvas id="heat-aura-canvas" class="heat-aura-canvas" aria-hidden="true"></canvas>
+                <div class="heat-map-controls">
+                    <button id="heat-map-zoom-in" aria-label="Zoom in">＋</button>
+                    <button id="heat-map-zoom-out" aria-label="Zoom out">−</button>
+                    <button id="heat-map-reset" aria-label="Reset Gombe State view">⌂</button>
+                    <button id="heat-map-fullscreen" aria-label="Toggle fullscreen">⛶</button>
+                </div>
+                <div class="heat-map-legend">
+                    <strong id="heat-legend-title">Ambient apparent-temperature screen</strong>
+                    <div class="heat-gradient-bar" id="heat-gradient-bar"></div>
+                    <div class="heat-gradient-labels"><span>Lower</span><span>Elevated</span><span>High</span><span>Very high</span></div>
+                    <span class="heat-legend-row"><i class="legend-hotspot"></i>NASA FIRMS thermal detection</span>
+                    <span class="heat-legend-row"><i class="legend-pulse"></i>Animated thermal-aura visualisation</span>
+                </div>
+                <div class="heat-map-time"><b id="heat-map-time">Awaiting live frame</b><span id="heat-map-mode-label">Ambient heat</span></div>
+            </div>
+            <p class="source-note" id="heat-map-note">Ambient shading uses the state-centre weather observation. Regional variation in the thermal layer is produced only by geolocated FIRMS detections.</p>
+        </article>
+
+        <aside class="heat-insight-column">
+            <section class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>SELECT REGION</small><h2>Local thermal explanation</h2></div><span class="panel-chip" id="heat-region-band">AWAITING</span></div>
+                <select id="heat-region-select" class="form-control" aria-label="Select a Gombe local government area"><option value="">Choose an LGA</option></select>
+                <div class="heat-region-summary" id="heat-region-summary">
+                    <div class="heat-region-score"><strong id="heat-region-score">--</strong><span>attention score</span></div>
+                    <div><small id="heat-region-name">No LGA selected</small><strong id="heat-region-meaning">Select a region to see evidence.</strong></div>
+                </div>
+                <div class="coverage-grid heat-coverage-grid">
+                    <article><small>APPARENT SCREEN</small><strong id="heat-region-apparent">--</strong></article>
+                    <article><small>DETECTIONS ≤75 KM</small><strong id="heat-region-count">--</strong></article>
+                    <article><small>TOTAL FRP</small><strong id="heat-region-frp">--</strong></article>
+                    <article><small>NEAREST DETECTION</small><strong id="heat-region-nearest">--</strong></article>
+                </div>
+            </section>
+            <section class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>WHAT THIS COULD MEAN</small><h2>Evidence-based interpretation</h2></div></div>
+                <div class="notice" id="heat-possible-meaning">Select an LGA to load a source-labelled interpretation.</div>
+            </section>
+        </aside>
+    </section>
+
+    <section class="portal-panel panel-pad" style="margin-top:16px">
+        <div class="panel-header"><div><small>OBSERVATION → INTERPRETATION</small><h2>Why the heat layer looks this way</h2></div><span class="panel-chip" id="heat-evidence-source">SOURCE PENDING</span></div>
+        <div class="evidence-grid heat-evidence-grid" id="heat-evidence"><div class="notice">Choose an LGA to see the observations and calculations behind the visual.</div></div>
+    </section>
+
+    <section class="portal-panel panel-pad" style="margin-top:16px">
+        <div class="panel-header"><div><small>SCIENTIFIC CAUTION</small><h2>What the platform does not assume</h2></div></div>
+        <ul class="caveat-list" id="heat-caveats">
+            <li>FIRMS detections are satellite thermal anomalies, not local air-temperature sensors.</li>
+            <li>Ambient weather is state-centre context unless a local station is explicitly shown.</li>
+            <li>Cause and smoke exposure require local confirmation.</li>
+        </ul>
+    </section>
+</main>
+<footer class="portal-footer">The ambient apparent-temperature screen combines current temperature, humidity and wind. It excludes direct solar radiation and is not an official warning. The combined attention score is a transparent visualisation index, not an emergency classification.</footer>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script type="module" src="/static/js/heat-page.js?v=10.1.0"></script>
+</body>
+</html>

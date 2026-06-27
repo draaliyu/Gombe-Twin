@@ -1,7 +1,7 @@
-import { DustParticleField } from "./dust.js?v=8.1.0";
-import { WindFlowField } from "./wind.js?v=8.1.0";
-import { HeatHazeField } from "./heat.js?v=8.1.0";
-import { LiveCharts } from "./charts.js?v=8.1.0";
+import { DustParticleField } from "./dust.js?v=10.1.0";
+import { WindFlowField } from "./wind.js?v=10.1.0";
+import { HeatHazeField } from "./heat.js?v=10.1.0";
+import { LiveCharts } from "./charts.js?v=10.1.0";
 
 const GOMBE_VIEW = { center: [11.24, 10.43], zoom: 7.72, pitch: 0, bearing: 0 };
 const FALLBACK_GOMBE_BOUNDS = { west: 10.30, south: 9.48, east: 12.24, north: 11.49 };
@@ -46,7 +46,9 @@ const state = {
     heatEnabled: true,
     radarEnabled: true,
     autoRotate: false,
-    visualBoost: true,
+    visualBoost: false,
+    boostUserToggled: false,
+    performanceTier: "standard",
     radarMarkers: [],
     placeLabels: [],
     boundaryPolygons: [],
@@ -118,7 +120,7 @@ const map = new maplibregl.Map({
     maxPitch: 75,
     antialias: window.innerWidth > 980,
     attributionControl: false,
-    cooperativeGestures: false,
+    cooperativeGestures: window.innerWidth <= 980,
     renderWorldCopies: false,
     fadeDuration: 0,
 });
@@ -131,14 +133,40 @@ const dustField = new DustParticleField(map, document.getElementById("dust-canva
 const charts = new LiveCharts(document.getElementById("particle-chart"), document.getElementById("wind-chart"));
 const appShell = document.querySelector(".app-shell");
 
+const mapVisibilityObserver = new IntersectionObserver((entries) => {
+    const visible = entries[0]?.isIntersecting ?? true;
+    dustField.setPaused?.(!visible);
+    windField.setPaused?.(!visible);
+    heatField.setPaused?.(!visible);
+}, { root: null, threshold: 0.02 });
+mapVisibilityObserver.observe(document.getElementById("map"));
+
 function applyPerformanceProfile() {
     const mode = state.platformMode || "desktop";
-    dustField?.setQuality?.(mode);
-    windField?.setQuality?.(mode);
-    heatField?.setQuality?.(mode);
+    const memory = Number(navigator.deviceMemory || 8);
+    const cores = Number(navigator.hardwareConcurrency || 8);
+    const saveData = Boolean(navigator.connection?.saveData);
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches || false;
+    const constrained = saveData || memory <= 4 || cores <= 4 || reducedMotion;
+    const renderMode = constrained ? (mode === "desktop" ? "tablet" : "mobile") : mode;
+    state.performanceTier = constrained ? "economy" : "standard";
+    document.body.dataset.performanceTier = state.performanceTier;
+    dustField?.setQuality?.(renderMode);
+    windField?.setQuality?.(renderMode);
+    heatField?.setQuality?.(renderMode);
+
+    if (!state.boostUserToggled) {
+        state.visualBoost = mode === "desktop" && !constrained;
+        appShell?.classList.toggle("visual-boost", state.visualBoost);
+        dustField?.setBoost?.(state.visualBoost);
+        windField?.setBoost?.(state.visualBoost);
+        heatField?.setBoost?.(state.visualBoost);
+        document.getElementById("toggle-boost")?.classList.toggle("active", state.visualBoost);
+    }
 }
 
 updatePlatformMode();
+applyPerformanceProfile();
 let platformResizeTimer = 0;
 function schedulePlatformUpdate(delay = 120) {
     window.clearTimeout(platformResizeTimer);
@@ -146,10 +174,6 @@ function schedulePlatformUpdate(delay = 120) {
 }
 window.addEventListener("resize", () => schedulePlatformUpdate(120), { passive: true });
 window.addEventListener("orientationchange", () => schedulePlatformUpdate(280), { passive: true });
-appShell.classList.add("visual-boost");
-dustField.setBoost(true);
-windField.setBoost(true);
-heatField.setBoost(true);
 
 map.on("load", async () => {
     addTerrain();
@@ -534,13 +558,15 @@ function geometryRepresentativePoint(geometry) {
     return [totals[0] / points.length, totals[1] / points.length];
 }
 
-function stableNameFactor(name) {
-    let hash = 2166136261;
-    for (const character of String(name)) {
-        hash ^= character.charCodeAt(0);
-        hash = Math.imul(hash, 16777619);
-    }
-    return ((hash >>> 0) % 1000) / 1000;
+function haversineKm(left, right) {
+    const toRadians = (value) => Number(value) * Math.PI / 180;
+    const [lon1, lat1] = left.map(toRadians);
+    const [lon2, lat2] = right.map(toRadians);
+    const deltaLon = lon2 - lon1;
+    const deltaLat = lat2 - lat1;
+    const value = Math.sin(deltaLat / 2) ** 2
+        + Math.cos(lat1) * Math.cos(lat2) * Math.sin(deltaLon / 2) ** 2;
+    return 2 * 6371.0088 * Math.asin(Math.min(1, Math.sqrt(value)));
 }
 
 function aqiCategoryAndColor(aqi) {
@@ -551,26 +577,61 @@ function aqiCategoryAndColor(aqi) {
     return { category: "Very unhealthy", color: "#8c4ab8" };
 }
 
+function calculateSubIndex(value, breakpoints) {
+    const concentration = Math.max(0, Number(value) || 0);
+    for (const [low, high, indexLow, indexHigh] of breakpoints) {
+        if (concentration >= low && concentration <= high) {
+            return Math.round(((indexHigh - indexLow) / (high - low)) * (concentration - low) + indexLow);
+        }
+    }
+    return 500;
+}
+
+function calculateAqiFromPm(pm25, pm10) {
+    const pm25Breakpoints = [[0,9,0,50],[9.1,35.4,51,100],[35.5,55.4,101,150],[55.5,125.4,151,200],[125.5,225.4,201,300],[225.5,325.4,301,500]];
+    const pm10Breakpoints = [[0,54,0,50],[55,154,51,100],[155,254,101,150],[255,354,151,200],[355,424,201,300],[425,604,301,500]];
+    return Math.max(
+        calculateSubIndex(Number(pm25).toFixed(1), pm25Breakpoints),
+        calculateSubIndex(Math.round(Number(pm10)), pm10Breakpoints),
+    );
+}
+
 function localHealthRecommendation(aqi) {
-    if (aqi <= 50) return "Air quality is suitable for normal outdoor activity.";
-    if (aqi <= 100) return "Sensitive residents should monitor symptoms during prolonged outdoor activity.";
-    if (aqi <= 150) return "Children, older adults and people with respiratory conditions should reduce prolonged outdoor exertion.";
-    if (aqi <= 200) return "Reduce outdoor exposure, close windows during high particle periods and use suitable respiratory protection when necessary.";
-    return "Avoid non-essential outdoor exposure. Vulnerable residents should remain indoors with cleaner air and follow local health advice.";
+    if (aqi <= 50) return "Air quality is in the Good category; normal outdoor activity is generally appropriate.";
+    if (aqi <= 100) return "Air quality is Moderate. Unusually sensitive people should watch for symptoms during prolonged outdoor activity.";
+    if (aqi <= 150) return "Sensitive groups should reduce prolonged or heavy outdoor exertion and monitor respiratory symptoms.";
+    if (aqi <= 200) return "Everyone should reduce prolonged outdoor exertion; sensitive groups should avoid heavy outdoor activity.";
+    return "Avoid non-essential outdoor exertion. Sensitive groups should remain in cleaner indoor air and follow local health advice.";
 }
 
 function calculateLocalLgaMetrics(name, frame, coordinate = [11.1673, 10.2897]) {
-    const seed = stableNameFactor(name);
-    const longitudeInfluence = Math.sin(Number(coordinate[0]) * 3.1 + seed * 5.7) * 0.055;
-    const latitudeInfluence = Math.cos(Number(coordinate[1]) * 3.7 + seed * 4.3) * 0.045;
-    const spatialFactor = Math.max(0.78, Math.min(1.22, 0.88 + seed * 0.24 + longitudeInfluence + latitudeInfluence));
-    const pm25 = Math.max(0, Number(frame.air_quality?.pm25 || 0) * spatialFactor);
-    const pm10 = Math.max(0, Number(frame.air_quality?.pm10 || 0) * (spatialFactor * 0.96 + 0.035));
-    const aqi = Math.max(0, Math.min(500, Math.round(Number(frame.air_quality?.aqi || 0) * (0.9 + seed * 0.2))));
-    const temperature = Number(frame.weather?.temperature_c || 0) + (seed - 0.5) * 2.2;
-    const humidity = Math.max(0, Math.min(100, Number(frame.weather?.humidity_pct || 0) + (0.5 - seed) * 8));
-    const windSpeed = Math.max(0, Number(frame.weather?.wind_speed_ms || 0) * (0.9 + seed * 0.18));
-    const windDirection = (Number(frame.weather?.wind_direction_deg || 0) + (seed - 0.5) * 18 + 360) % 360;
+    const stations = Array.isArray(frame.air_quality?.stations) ? frame.air_quality.stations : [];
+    const nearest = stations
+        .map((station) => ({
+            station,
+            distance: haversineKm(coordinate, [Number(station.longitude), Number(station.latitude)]),
+        }))
+        .filter((item) => Number.isFinite(item.distance))
+        .sort((left, right) => left.distance - right.distance)
+        .slice(0, 4);
+
+    let pm25 = Number(frame.air_quality?.pm25 || 0);
+    let pm10 = Number(frame.air_quality?.pm10 || 0);
+    let method = "State aggregate because no geolocated station was available";
+    let confidence = "low";
+    let nearestDistance = null;
+
+    if (nearest.length) {
+        const weights = nearest.map((item) => 1 / Math.max(item.distance, 5) ** 2);
+        const weightSum = weights.reduce((sum, value) => sum + value, 0);
+        pm25 = nearest.reduce((sum, item, index) => sum + weights[index] * Number(item.station.pm25 || 0), 0) / weightSum;
+        pm10 = nearest.reduce((sum, item, index) => sum + weights[index] * Number(item.station.pm10 || 0), 0) / weightSum;
+        nearestDistance = nearest[0].distance;
+        method = "Inverse-distance estimate from the nearest live air-quality stations";
+        confidence = nearestDistance <= 15 && nearest.length >= 2 ? "high" : nearestDistance <= 50 ? "medium" : "low";
+    }
+
+    const aqi = calculateAqiFromPm(pm25, pm10);
     const severity = aqiCategoryAndColor(aqi);
     return {
         aqi,
@@ -578,11 +639,15 @@ function calculateLocalLgaMetrics(name, frame, coordinate = [11.1673, 10.2897]) 
         color: severity.color,
         pm25,
         pm10,
-        temperature,
-        humidity,
-        windSpeed,
-        windDirection,
+        temperature: Number(frame.weather?.temperature_c || 0),
+        humidity: Number(frame.weather?.humidity_pct || 0),
+        windSpeed: Number(frame.weather?.wind_speed_ms || 0),
+        windDirection: Number(frame.weather?.wind_direction_deg || 0),
         healthRecommendation: localHealthRecommendation(aqi),
+        method,
+        confidence,
+        stationCount: nearest.length,
+        nearestDistance,
     };
 }
 
@@ -620,7 +685,7 @@ function renderLgaCard(name, frame, coordinate) {
     state.selectedLgaName = name;
     setText("lga-name", name);
     setText("lga-aqi", metrics.aqi);
-    setText("lga-aqi-category", metrics.category);
+    setText("lga-aqi-category", `${metrics.category} · ${metrics.confidence} confidence`);
     setText("lga-pm25", metrics.pm25.toFixed(1));
     setText("lga-pm10", metrics.pm10.toFixed(1));
     setText("lga-temperature", metrics.temperature.toFixed(1));
@@ -1127,7 +1192,8 @@ function renderFrame(frame, previous) {
     setText("wind-speed", frame.weather.wind_speed_ms.toFixed(1));
     setText("wind-bearing", `${compassDirection(frame.weather.wind_direction_deg)} · FROM ${frame.weather.wind_direction_deg.toFixed(0)}°`);
     elements["wind-arrow"].style.transform = `rotate(${frame.weather.wind_direction_deg}deg)`;
-    setText("gust-speed", frame.weather.wind_gust_ms.toFixed(1));
+    const liveWeatherSource = String(frame.sources?.weather || "").toLowerCase().includes("openweather");
+    setText("gust-speed", liveWeatherSource && !frame.weather.wind_gust_reported ? "--" : frame.weather.wind_gust_ms.toFixed(1));
     setText("humidity", frame.weather.humidity_pct.toFixed(0));
     setText("humidity-state", humidityState(frame.weather.humidity_pct));
     setText("pressure", frame.weather.pressure_hpa.toFixed(0));
@@ -1514,6 +1580,7 @@ function bindControls() {
     });
 
     document.getElementById("toggle-boost").addEventListener("click", (event) => {
+        state.boostUserToggled = true;
         state.visualBoost = !state.visualBoost;
         event.currentTarget.classList.toggle("active", state.visualBoost);
         appShell.classList.toggle("visual-boost", state.visualBoost);

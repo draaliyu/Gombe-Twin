@@ -74,21 +74,27 @@ class DigitalTwinSimulator:
         weather = deepcopy(self.weather)
         air = deepcopy(self.air_quality)
 
-        weather.wind_speed_ms = round(max(0.2, weather.wind_speed_ms + 0.35 * math.sin(phase) + self.random.uniform(-0.07, 0.07)), 2)
-        weather.wind_gust_ms = round(max(weather.wind_speed_ms, weather.wind_gust_ms + 0.55 * math.sin(phase * 0.73)), 2)
-        weather.wind_direction_deg = round((weather.wind_direction_deg + 2.4 * math.sin(phase * 0.31)) % 360, 1)
-        weather.humidity_pct = round(max(5.0, min(100.0, weather.humidity_pct + 0.7 * math.sin(phase * 0.19))), 1)
-        weather.temperature_c = round(weather.temperature_c + 0.25 * math.sin(phase * 0.11), 1)
-        weather.pressure_hpa = round(weather.pressure_hpa + 0.35 * math.sin(phase * 0.07), 1)
-        weather.cloud_cover_pct = round(max(0.0, min(100.0, weather.cloud_cover_pct + 1.2 * math.sin(phase * 0.13))), 1)
-        weather.precipitation_mm_1h = round(max(0.0, weather.precipitation_mm_1h + 0.02 * math.sin(phase * 0.17)), 2)
+        # Preserve values received from live APIs exactly. Continuous visual
+        # motion is handled by the browser renderers; it must not be mistaken
+        # for new environmental measurements. Only missing/demo sources are
+        # animated to keep the standalone demonstration usable.
+        if not self._live_flags["weather"]:
+            weather.wind_speed_ms = round(max(0.2, weather.wind_speed_ms + 0.35 * math.sin(phase) + self.random.uniform(-0.07, 0.07)), 2)
+            weather.wind_gust_ms = round(max(weather.wind_speed_ms, weather.wind_gust_ms + 0.55 * math.sin(phase * 0.73)), 2)
+            weather.wind_direction_deg = round((weather.wind_direction_deg + 2.4 * math.sin(phase * 0.31)) % 360, 1)
+            weather.humidity_pct = round(max(5.0, min(100.0, weather.humidity_pct + 0.7 * math.sin(phase * 0.19))), 1)
+            weather.temperature_c = round(weather.temperature_c + 0.25 * math.sin(phase * 0.11), 1)
+            weather.pressure_hpa = round(weather.pressure_hpa + 0.35 * math.sin(phase * 0.07), 1)
+            weather.cloud_cover_pct = round(max(0.0, min(100.0, weather.cloud_cover_pct + 1.2 * math.sin(phase * 0.13))), 1)
+            weather.precipitation_mm_1h = round(max(0.0, weather.precipitation_mm_1h + 0.02 * math.sin(phase * 0.17)), 2)
 
-        pm_wave = 1.8 * math.sin(phase * 0.47) + 0.75 * math.sin(phase * 1.13)
-        wind_resuspension = max(0.0, weather.wind_speed_ms - 5.0) * 0.42
-        air.pm25 = round(max(1.0, air.pm25 + pm_wave * 0.28 + wind_resuspension * 0.07), 1)
-        air.pm10 = round(max(2.0, air.pm10 + pm_wave * 0.72 + wind_resuspension * 0.26), 1)
-        air.aqi, air.category = calculate_aqi(air.pm25, air.pm10)
-        air.stations = self._animate_stations(air.stations, air.pm25, air.pm10, phase)
+        if not self._live_flags["air_quality"]:
+            pm_wave = 1.8 * math.sin(phase * 0.47) + 0.75 * math.sin(phase * 1.13)
+            wind_resuspension = max(0.0, weather.wind_speed_ms - 5.0) * 0.42
+            air.pm25 = round(max(1.0, air.pm25 + pm_wave * 0.28 + wind_resuspension * 0.07), 1)
+            air.pm10 = round(max(2.0, air.pm10 + pm_wave * 0.72 + wind_resuspension * 0.26), 1)
+            air.aqi, air.category = calculate_aqi(air.pm25, air.pm10)
+            air.stations = self._animate_stations(air.stations, air.pm25, air.pm10, phase)
 
         indicators = derive_indicators(weather, air, len(self.hotspots))
         live_count = sum(self._live_flags.values())

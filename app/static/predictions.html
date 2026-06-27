@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#061019">
+    <meta name="description" content="Provider and locally trained air-quality forecasts for Gombe State.">
+    <title>AI Forecast · Gombe State Air Quality Visualisation Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=10.1.0">
+    <link rel="stylesheet" href="/static/css/portal.css?v=10.1.0">
+</head>
+<body class="portal-body">
+<header class="portal-header"><div class="portal-header-inner">
+    <a class="portal-brand" href="/"><span class="portal-brand-mark"></span><span><small>GOMBE ENVIRONMENTAL SERVICES</small><strong>Air Quality Visualisation Twin</strong></span></a>
+    <div class="portal-live"><i></i><span id="portal-stream">CONNECTING</span></div>
+    <nav class="service-navigation" aria-label="Digital twin services"><a href="/"><b>◉</b>Live Twin</a><a href="/explore"><b>⌖</b>Regional Explorer</a><a href="/weather"><b>≋</b>Weather Dynamics</a><a href="/heat"><b>♨</b>Heat Intelligence</a><a href="/learn"><b>?</b>Evidence Lab</a><a href="/predictions"><b>⌁</b>AI Forecast</a></nav>
+</div></header>
+<main class="portal-main">
+    <section class="page-hero"><div><p class="eyebrow">FORECAST AND MODEL SERVICE</p><h1>Separate provider forecasts from local AI predictions</h1><p>The page never labels provider forecasts as local model output. The experimental local model trains only on paired live OpenWeather and OpenAQ observations collected by this deployment.</p></div><div class="hero-status"><small>MODEL STATE</small><strong id="prediction-ready">CHECKING</strong></div></section>
+    <section class="prediction-summary">
+        <article class="metric-tile"><small>CURRENT AQI</small><strong id="prediction-current-aqi">--</strong><span id="prediction-current-category">Awaiting frame</span></article>
+        <article class="metric-tile"><small>ELIGIBLE TRAINING ROWS</small><strong id="prediction-samples">--</strong><span id="prediction-samples-note">Checking history</span></article>
+        <article class="metric-tile"><small>MODEL TRAINED</small><strong id="prediction-trained">--</strong><span id="prediction-trained-at">No metadata</span></article>
+    </section>
+    <section class="portal-grid" style="margin-top:16px">
+        <article class="portal-panel panel-pad">
+            <div class="panel-header"><div><small>COMPARATIVE FORECAST</small><h2>PM2.5 and PM10 outlook</h2></div><select id="prediction-horizon" class="form-control" style="width:130px"><option value="6">6 steps</option><option value="8" selected>8 steps</option><option value="12">12 steps</option></select></div>
+            <canvas class="prediction-chart" id="prediction-chart" aria-label="Air quality forecast chart"></canvas>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;color:#8ea5ab;font-size:9px"><span style="color:#43d7d2">● Provider PM2.5</span><span style="color:#f4ca64">● Provider PM10</span><span style="color:#ff914d">● Local AI PM2.5</span><span style="color:#ef4f58">● Local AI PM10</span></div>
+            <div class="notice" id="prediction-message" style="margin-top:14px">Loading forecast services…</div>
+        </article>
+        <aside style="display:grid;gap:16px">
+            <section class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>MODEL TRANSPARENCY</small><h2>Readiness and validation</h2></div></div>
+                <div class="model-status-grid">
+                    <article><small>ALGORITHM</small><strong id="model-algorithm">Not trained</strong></article>
+                    <article><small>TRAINING SAMPLES</small><strong id="model-sample-count">0</strong></article>
+                    <article><small>PM2.5 VALIDATION MAE</small><strong id="model-pm25-mae">--</strong></article>
+                    <article><small>PM10 VALIDATION MAE</small><strong id="model-pm10-mae">--</strong></article>
+                </div>
+                <div style="margin-top:13px"><div class="progress-track" id="sample-progress"><i></i></div><p class="source-note" id="model-readiness-note" style="margin:7px 0 0">Calculating readiness…</p></div>
+            </section>
+            <section class="portal-panel panel-pad admin-box">
+                <div class="panel-header"><div><small>ADMINISTRATOR ONLY</small><h2>Retrain local model</h2></div><span class="panel-chip" id="admin-state">LOCKED</span></div>
+                <p class="source-note">The credential is sent in an HTTPS Authorization header and is never placed in the URL. Five failed attempts trigger a temporary server-side lockout.</p>
+                <div class="admin-form" style="margin-top:12px"><input id="admin-password" class="form-control" type="password" autocomplete="off" spellcheck="false" placeholder="Administrator password"><button id="admin-retrain" class="action-button" type="button">Retrain model</button></div>
+                <div class="notice" id="admin-result" style="margin-top:12px">No retraining request has been made.</div>
+            </section>
+        </aside>
+    </section>
+</main>
+<footer class="portal-footer">The local model is experimental decision support. It does not replace official public-health forecasts. On Render Free, local SQLite history and model files can be lost when the service is rebuilt unless persistent storage is configured.</footer>
+<script type="module" src="/static/js/predictions.js?v=10.1.0"></script>
+</body>
+</html>

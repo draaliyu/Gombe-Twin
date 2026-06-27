@@ -43,7 +43,7 @@ def test_high_visibility_motion_features_are_loaded() -> None:
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
     wind_js = (STATIC_ROOT / "js" / "wind.js").read_text(encoding="utf-8")
 
-    assert "?v=8.1.0" in html
+    assert "?v=10.1.0" in html
     assert "V6 CLEAR-MAP LAYOUT + SMART TOWN LABELS" in css
     assert "updateAnimationHud" in app_js
     assert "toggle-boost" in app_js
@@ -79,7 +79,7 @@ def test_clear_map_layout_and_smart_labels_are_loaded() -> None:
     css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
     app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
 
-    assert 'href="/static/favicon.svg?v=8.1.0"' in html
+    assert 'href="/static/favicon.svg?v=10.1.0"' in html
     assert "--map-frame-left" in css
     assert ".gombe-place-marker" in css
     assert ".place-leader" in css
@@ -139,3 +139,56 @@ def test_v81_map_legend_is_readable() -> None:
     assert "font-size: 11px" in css
     assert "grid-template-columns: repeat(2, minmax(0, 1fr))" in css
     assert "overflow-y: auto" in css
+
+
+def test_v9_service_pages_and_navigation_exist() -> None:
+    required_pages = {"explore.html", "weather.html", "learn.html", "predictions.html"}
+    for filename in required_pages:
+        page = STATIC_ROOT / filename
+        assert page.exists()
+        html = page.read_text(encoding="utf-8")
+        assert "service-navigation" in html
+        assert "Gombe State" in html
+
+    index_html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    assert "live-service-nav" in index_html
+    assert 'href="/predictions"' in index_html
+    assert "mobile-scroll-assist" in index_html
+
+
+def test_v9_mobile_scroll_and_performance_controls_exist() -> None:
+    css = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
+    app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
+    for filename in {"dust.js", "wind.js", "heat.js"}:
+        source = (STATIC_ROOT / "js" / filename).read_text(encoding="utf-8")
+        assert "setPaused" in source
+        assert "this.paused" in source
+    assert "touch-action: pan-y" in css
+    assert "cooperativeGestures: window.innerWidth <= 980" in app_js
+    assert "IntersectionObserver" in app_js
+
+
+def test_v9_lga_values_are_station_based_not_name_randomised() -> None:
+    app_js = (STATIC_ROOT / "js" / "app.js").read_text(encoding="utf-8")
+    assert "haversineKm" in app_js
+    assert "Inverse-distance estimate" in app_js
+    assert "stableNameFactor" not in app_js
+
+
+def test_v91_mobile_dashboard_jump_and_source_provenance_exist() -> None:
+    index_html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+    explore_html = (STATIC_ROOT / "explore.html").read_text(encoding="utf-8")
+    explore_js = (STATIC_ROOT / "js" / "explore.js").read_text(encoding="utf-8")
+    styles = (STATIC_ROOT / "css" / "styles.css").read_text(encoding="utf-8")
+    assert 'id="dashboard-panels"' in index_html
+    assert 'class="mobile-dashboard-jump"' in index_html
+    assert 'id="region-provenance"' in explore_html
+    assert "evidence_notice" in explore_js
+    assert "overflow-y: scroll !important" in styles
+
+
+def test_v9_service_catalogue_route_is_declared() -> None:
+    main_py = (PROJECT_ROOT / "app" / "main.py").read_text(encoding="utf-8")
+    assert '@app.get("/api/services")' in main_py
+    for name in {"Live Twin", "Regional Explorer", "Weather Dynamics", "Heat Intelligence", "Evidence Lab", "AI Forecast"}:
+        assert name in main_py

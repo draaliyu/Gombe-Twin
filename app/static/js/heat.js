@@ -10,6 +10,7 @@ export class HeatHazeField {
         this.canvas = canvas;
         this.ctx = canvas.getContext("2d", { alpha: true, desynchronized: true });
         this.enabled = true;
+        this.paused = false;
         this.boosted = true;
         this.temperature = 31;
         this.heatLoad = 42;
@@ -71,6 +72,14 @@ export class HeatHazeField {
         }
         if (this.wavePackets.length > targetPackets + 4) {
             this.wavePackets.length = Math.max(targetPackets, this.wavePackets.length - 4);
+        }
+    }
+
+    setPaused(paused) {
+        this.paused = Boolean(paused);
+        if (this.paused) {
+            this.lastTime = performance.now();
+            this.ctx.clearRect(0, 0, this.canvas.clientWidth, this.canvas.clientHeight);
         }
     }
 
@@ -290,7 +299,7 @@ export class HeatHazeField {
     }
 
     animate(now) {
-        if (document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
+        if (this.paused || document.hidden || (this.minFrameInterval && now - this.lastRenderedAt < this.minFrameInterval)) {
             if (document.hidden) this.lastTime = now;
             requestAnimationFrame(this.animate);
             return;

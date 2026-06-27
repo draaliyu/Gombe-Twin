@@ -50,8 +50,10 @@ class OpenAQService:
         if not pm25_values and not pm10_values:
             return None
 
-        pm25 = median(pm25_values) if pm25_values else median(pm10_values) * 0.45
-        pm10 = median(pm10_values) if pm10_values else median(pm25_values) * 2.1
+        if not pm25_values or not pm10_values:
+            return None
+        pm25 = median(pm25_values)
+        pm10 = median(pm10_values)
         aqi, category = calculate_aqi(pm25, pm10)
         observed_at = max((station.observed_at for station in stations), default=datetime.now(timezone.utc))
         return AirQualityReading(
@@ -91,12 +93,14 @@ class OpenAQService:
                 if utc_value:
                     observed_at = datetime.fromisoformat(utc_value.replace("Z", "+00:00"))
 
-        if not values:
+        # Do not infer one pollutant from the other. A station contributes to
+        # the paired regional estimate only when both measurements are present.
+        if "pm25" not in values or "pm10" not in values:
             return None
 
         coordinates = location.get("coordinates") or {}
-        pm25 = values.get("pm25", values.get("pm10", 0.0) * 0.45)
-        pm10 = values.get("pm10", values.get("pm25", 0.0) * 2.1)
+        pm25 = values["pm25"]
+        pm10 = values["pm10"]
         return AirStation(
             id=str(location_id),
             name=str(location.get("name") or location.get("locality") or f"OpenAQ {location_id}"),

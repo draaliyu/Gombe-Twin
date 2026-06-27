@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#061019">
+    <meta name="description" content="Explore live air-quality evidence for Gombe State local government areas.">
+    <title>Regional Explorer · Gombe State Air Quality Visualisation Twin</title>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg?v=10.1.0">
+    <link rel="preconnect" href="https://unpkg.com">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+    <link rel="stylesheet" href="/static/css/portal.css?v=10.1.0">
+</head>
+<body class="portal-body">
+<header class="portal-header">
+    <div class="portal-header-inner">
+        <a class="portal-brand" href="/">
+            <span class="portal-brand-mark" aria-hidden="true"></span>
+            <span><small>GOMBE ENVIRONMENTAL SERVICES</small><strong>Air Quality Visualisation Twin</strong></span>
+        </a>
+        <div class="portal-live"><i></i><span id="portal-stream">CONNECTING</span></div>
+        <nav class="service-navigation" aria-label="Digital twin services">
+            <a href="/"><b>◉</b>Live Twin</a><a href="/explore"><b>⌖</b>Regional Explorer</a><a href="/weather"><b>≋</b>Weather Dynamics</a><a href="/heat"><b>♨</b>Heat Intelligence</a><a href="/learn"><b>?</b>Evidence Lab</a><a href="/predictions"><b>⌁</b>AI Forecast</a>
+        </nav>
+    </div>
+</header>
+<main class="portal-main">
+    <section class="page-hero">
+        <div><p class="eyebrow">REGIONAL EVIDENCE SERVICE</p><h1>Explore every Gombe LGA</h1><p>Tap a local government area to view measured or spatially estimated particulate levels, state weather context, wind transport, nearby thermal detections and a transparent explanation of the evidence.</p></div>
+        <div class="hero-status"><small>GOMBE LOCAL TIME</small><strong id="portal-clock">--:--:-- UTC+1</strong></div>
+    </section>
+    <section class="explorer-layout">
+        <article class="portal-panel explorer-map-panel">
+            <div id="explorer-map" aria-label="Interactive Gombe State local government map"></div>
+            <div class="explorer-map-overlay">
+                <div class="explorer-map-badge"><span id="explorer-map-status">Loading Gombe boundaries…</span></div>
+                <div class="explorer-actions"><button id="explorer-zoom-in" aria-label="Zoom in">＋</button><button id="explorer-zoom-out" aria-label="Zoom out">−</button><button id="explorer-reset" aria-label="Reset map">⌂</button></div>
+            </div>
+            <div class="explorer-scroll-hint">Use one finger to scroll · two fingers to move the map</div>
+        </article>
+        <aside class="region-sidebar">
+            <section class="portal-panel panel-pad">
+                <div class="panel-header"><div><small>SELECT REGION</small><h2>Local evidence</h2></div><span class="panel-chip" id="region-confidence">AWAITING</span></div>
+                <div class="notice provenance-notice" id="region-provenance">Select an LGA to inspect source provenance.</div>
+                <select id="region-select" class="form-control" aria-label="Select local government area"><option value="">Choose an LGA</option></select>
+            </section>
+            <section class="region-hero" id="region-hero">
+                <small>LOCAL GOVERNMENT AREA</small><h2 id="region-name">Select an LGA</h2>
+                <div class="region-aqi-row"><div class="region-aqi-orb"><strong id="region-aqi">--</strong></div><div class="region-aqi-copy"><b id="region-category">No region selected</b><span id="region-method">Tap the map or use the list above.</span></div></div>
+                <div class="coverage-grid" style="margin-top:14px">
+                    <article><small>PM2.5</small><strong id="region-pm25">--</strong></article><article><small>PM10</small><strong id="region-pm10">--</strong></article>
+                    <article><small>NEAREST SENSOR</small><strong id="region-nearest">--</strong></article><article><small>HOTSPOTS ≤75 KM</small><strong id="region-hotspots">--</strong></article>
+                </div>
+            </section>
+            <section class="portal-panel panel-pad">
+                <div class="insight-tabs"><button class="active" data-topic="particles">Particles</button><button data-topic="wind">Wind</button><button data-topic="heat">Heat</button></div>
+                <div class="evidence-list" id="region-evidence"><div class="notice">Select an LGA to load evidence from the current API frame.</div></div>
+            </section>
+            <section class="portal-panel panel-pad"><div class="panel-header"><div><small>HEALTH GUIDANCE</small><h2>Current recommendation</h2></div></div><div class="notice" id="region-health">A recommendation will appear after an LGA is selected.</div><p class="source-note" id="region-updated" style="margin-top:10px">Updated: --</p></section>
+        </aside>
+    </section>
+</main>
+<footer class="portal-footer">Regional particulate values are direct measurements where a local sensor exists; otherwise the service clearly labels them as spatial estimates. Weather values remain state-level unless a dedicated local sensor is available.</footer>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script type="module" src="/static/js/explore.js?v=10.1.0"></script>
+</body>
+</html>
